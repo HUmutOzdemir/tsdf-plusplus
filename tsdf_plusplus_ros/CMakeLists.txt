@@ -3,6 +3,7 @@ project(tsdf_plusplus_ros)
 
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system filesystem thread)
 
 cs_add_library(${PROJECT_NAME}_library
   src/controller.cc

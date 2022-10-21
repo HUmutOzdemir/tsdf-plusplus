@@ -21,7 +21,7 @@
     uri: https://github.com/ethz-asl/glog_catkin.git
 - git:
     local-name: mask_rcnn_ros
-    uri: https://github.com/ethz-asl/mask_rcnn_ros.git
+    uri: https://github.com/akio/mask_rcnn_ros.git
 - git:
     local-name: minkindr
     uri: https://github.com/ethz-asl/minkindr.git
@@ -33,7 +33,7 @@
     uri: https://github.com/ethz-asl/numpy_eigen.git
 - git:
     local-name: pcl_catkin
-    uri: https://github.com/ethz-asl/pcl_catkin.git
+    uri: https://github.com/HUmutOzdemir/pcl_catkin.git
 - git:
     local-name: protobuf_catkin
     uri: https://github.com/ethz-asl/protobuf_catkin.git
