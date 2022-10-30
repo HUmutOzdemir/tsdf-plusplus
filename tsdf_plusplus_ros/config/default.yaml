@@ -19,9 +19,9 @@ object_tracking:
   icp_max_correspondence_distance: 100
   icp_use_symmetric_objective: false
   icp_max_iterations: 100
-  icp_transformation_epsilon: 0.000002
-  icp_absolute_mse: 0.000000000001
-  icp_euclidean_fitness_epsilon: 0.0001 # 0.01 = improvement of 1% of previous MSE.
+  icp_transformation_epsilon: 0.0002
+  icp_absolute_mse: 0.000001
+  icp_euclidean_fitness_epsilon: 0.00001 # 0.01 = improvement of 1% of previous MSE.
 
 meshing:
   update_mesh_every_n_sec: 1.0

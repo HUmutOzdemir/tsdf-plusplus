@@ -84,7 +84,7 @@ If it still freezes at compilation time, you can go as far as limiting the maxim
 catkin build tsdf_plusplus_ros rgbd_segmentation mask_rcnn_ros cloud_segmentation -j1 -l1
 ```
 
-To install this on Ubuntu  20.04 Please add the following line to `CMakeLists.txt` file of `rgbd_segmentation`, `voxblox_ros` and `cloud_segmentation` packages.
+To install this on Ubuntu 20.04 Please add the following line to `CMakeLists.txt` file of `rgbd_segmentation`, `voxblox_ros` and `cloud_segmentation` packages.
 
 ```
 find_package(Boost REQUIRED COMPONENTS system filesystem thread)
