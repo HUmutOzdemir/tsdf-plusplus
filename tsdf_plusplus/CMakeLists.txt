@@ -3,7 +3,6 @@ project(tsdf_plusplus)
 
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system filesystem thread)
 
 cs_add_library(${PROJECT_NAME}
   src/alignment/icp.cc
@@ -15,6 +14,8 @@ cs_add_library(${PROJECT_NAME}
   src/mesh/mesh_integrator.cc
   src/visualizer/visualizer.cc
 )
+
+target_link_libraries(${PROJECT_NAME} pcl_visualization)
 
 cs_install()
 cs_export()

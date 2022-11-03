@@ -32,9 +32,6 @@
     local-name: numpy_eigen
     uri: https://github.com/ethz-asl/numpy_eigen.git
 - git:
-    local-name: pcl_catkin
-    uri: https://github.com/HUmutOzdemir/pcl_catkin.git
-- git:
     local-name: protobuf_catkin
     uri: https://github.com/ethz-asl/protobuf_catkin.git
 - git:
