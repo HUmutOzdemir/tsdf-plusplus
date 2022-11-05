@@ -7,8 +7,9 @@
 	<node pkg="tsdf_plusplus_ros" type="tsdf_plusplus_node" name="tsdf_plusplus_node" output="screen">
 		<rosparam command="load" file="$(find tsdf_plusplus_ros)/config/default.yaml" />
 	  <rosparam command="load" file="$(find tsdf_plusplus_ros)/config/$(arg scene_name).yaml" />
-    <rosparam command="load" file="$(find tsdf_plusplus_ros)/config/$(arg sensor_name)_camera.yaml" />
-
+    <rosparam command="load" file="$(find rgbd_segmentation)/config/$(arg sensor_name).yaml" />
+    <param name="/use_sim_time" value="true" />
+    
     <!-- Load the human-readable Microsoft COCO 80 object categories. -->
 		<rosparam command="load" file="$(find tsdf_plusplus_ros)/config/coco_classes.yaml" />
 

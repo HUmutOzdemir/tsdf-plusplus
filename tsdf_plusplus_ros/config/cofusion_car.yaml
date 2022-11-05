@@ -16,7 +16,7 @@ object_tracking:
 
 meshing:
   update_mesh_every_n_sec: 1.0
-  publish_mesh: false
+  publish_mesh: true
   mesh_filename: "tpp_map.ply"
 
 visualizer:
