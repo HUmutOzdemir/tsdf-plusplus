@@ -1,6 +1,6 @@
 <launch>
-  <arg name="scene_name" default="ai2thor" />
-  <arg name="sensor_name" default="ai2thor" />
+  <arg name="scene_name" default="cofusion_car" />
+  <arg name="sensor_name" default="cofusion_car" />
   <arg name="gt_segmentation" default="false" />
   <arg name="visualize" default="true" />
 
