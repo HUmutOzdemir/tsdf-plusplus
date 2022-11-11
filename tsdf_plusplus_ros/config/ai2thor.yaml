@@ -1,10 +1,16 @@
 sensor_frame: "camera"
+rgb_image_sub_topic: /camera/rgb/image_raw
+depth_image_sub_topic: /camera/depth/image_raw
 
-voxel_size: 0.05
+camera_intrinsics: [259.8, 0, 150, 0, 259.8, 150, 0, 0, 1]
+
+
+voxel_size: 0.01
 truncation_distance_factor: 3.0
 max_ray_length_m: 5
 max_weight: 10000
 use_sparsity_compensation_factor: true
+
 
 object_tracking:
   enable: true
