@@ -159,7 +159,7 @@ void Controller::segmentPointcloudCallback(
   bool frame_complete = segment_pcl_msg->header.stamp - last_segment_msg_time_ >
                         min_time_between_msgs_;
   if (frame_complete && current_frame_segments_.size() > 0u) {
-    LOG(INFO) << "Integrating frame " << ++frame_number_ << " with timestamp "
+    LOG(ERROR) << "Integrating frame " << ++frame_number_ << " with timestamp "
               << std::fixed << last_segment_msg_time_.toSec();
     integrateFrame();
 
@@ -298,10 +298,10 @@ void Controller::integrateFrame() {
     integrate_timer.Stop();
 
     if (using_ground_truth_segmentation_) {
-      LOG(INFO) << "Integrated " << current_frame_segments_.size()
+      LOG(ERROR) << "Integrated " << current_frame_segments_.size()
                 << " segments in " << tic_toc.toc() << " ms. ";
     } else {
-      LOG(INFO) << "Integrated " << object_merged_segments_.size()
+      LOG(ERROR) << "Integrated " << object_merged_segments_.size()
                 << " segments in " << tic_toc.toc() << " ms. ";
     }
 
@@ -310,7 +310,7 @@ void Controller::integrateFrame() {
     *camera_extrinsics_ = T_G_C_.getTransformationMatrix();
   }
 
-  LOG(INFO) << "Timings: " << std::endl
+  LOG(ERROR) << "Timings: " << std::endl
             << voxblox::timing::Timing::Print() << std::endl;
 }
 
@@ -334,6 +334,8 @@ void Controller::trackObjects() {
     ObjectVolume* object_volume =
         map_->getObjectVolumePtrById(segment->object_id_);
 
+    LOG(ERROR) << "Object ID: " << segment->object_id_;
+
     if (object_volume) {
       if (using_ground_truth_segmentation_) {
         // TODO(margaritaG): parametrize this nicely.
@@ -341,10 +343,15 @@ void Controller::trackObjects() {
         // and no semantics, we use thresholds on the object segment size
         // to differentiate between small moving foreground objects and
         // large static background structures.
-        if (segment->points_C_.size() > 20000 ||
-            segment->points_C_.size() < 2000) {
-          LOG(INFO) << "Skipping pose tracking of object segment as its "
-                       "size is too large or too low. (number of points: "
+        // if (segment->object_id_ % 2 || segment->points_C_.size() > 100000) {
+
+        if (segment->object_id_ % 2 == 0) {
+          LOG(ERROR) << "Non-Moveable Object | Object ID: " << segment->object_id_;
+          continue;
+        }
+        else if (segment->points_C_.size() > 20000 || segment->points_C_.size() < 2000){
+          LOG(ERROR) << "Skipping pose tracking of object segment as its "
+                      "size is too large or too low. (number of points: "
                     << segment->points_C_.size() << ").";
           continue;
         }
@@ -357,7 +364,7 @@ void Controller::trackObjects() {
         }
         // TODO(margaritaG): parametrize this nicely.
         if (segment->points_C_.size() > 100000) {
-          LOG(INFO) << "Skipping pose tracking of object segment as its "
+          LOG(ERROR) << "Skipping pose tracking of object segment as its "
                        "size is too large. (number of points: "
                     << segment->points_C_.size() << ").";
           continue;
@@ -506,9 +513,9 @@ bool Controller::generateMeshCallback(std_srvs::Empty::Request& /*request*/,
     if (!mesh_filename_.empty()) {
       const bool success = outputMeshLayerAsPly(mesh_filename_, *mesh_layer_);
       if (success) {
-        LOG(INFO) << "Output file as PLY: " << mesh_filename_.c_str();
+        LOG(ERROR) << "Output file as PLY: " << mesh_filename_.c_str();
       } else {
-        LOG(INFO) << "Failed to output mesh as PLY: " << mesh_filename_.c_str();
+        LOG(ERROR) << "Failed to output mesh as PLY: " << mesh_filename_.c_str();
       }
     }
   }
@@ -538,9 +545,9 @@ bool Controller::saveObjectsCallback(std_srvs::Empty::Request& /*request*/,
         voxblox::io::PlyOutputTypes::kSdfIsosurface);
 
     if (success) {
-      LOG(INFO) << "Output object file as PLY: " << mesh_filename.c_str();
+      LOG(ERROR) << "Output object file as PLY: " << mesh_filename.c_str();
     } else {
-      LOG(INFO) << "Failed to output mesh as PLY:" << mesh_filename.c_str();
+      LOG(ERROR) << "Failed to output mesh as PLY:" << mesh_filename.c_str();
     }
   }
 }

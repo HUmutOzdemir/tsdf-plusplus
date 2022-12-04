@@ -235,10 +235,6 @@ void Map::transformLayer(const ObjectID& object_id,
     mo_block->updated().set();
   }
 
-  // Next, transform the object_volume.
-  Layer<TsdfVoxel>* layer_out = new Layer<TsdfVoxel>(
-      object_layer->voxel_size(), object_layer->voxels_per_side());
-
   // Mark all the blocks in the output layer that may be filled by the
   // input layer (we are conservative here approximating the input blocks as
   // spheres of diameter sqrt(3)*block_size).
@@ -257,14 +253,14 @@ void Map::transformLayer(const ObjectID& object_id,
 
     // Add index of all blocks in range to set.
     for (float x = c_out.x() - offset; x < c_out.x() + offset;
-         x += layer_out->block_size()) {
+         x += object_layer->block_size()) {
       for (float y = c_out.y() - offset; y < c_out.y() + offset;
-           y += layer_out->block_size()) {
+           y += object_layer->block_size()) {
         for (float z = c_out.z() - offset; z < c_out.z() + offset;
-             z += layer_out->block_size()) {
+             z += object_layer->block_size()) {
           const Point current_center_out = Point(x, y, z);
           BlockIndex current_idx = getGridIndexFromPoint<BlockIndex>(
-              current_center_out, 1.0f / layer_out->block_size());
+              current_center_out, 1.0f / object_layer->block_size());
           block_idx_set.insert(current_idx);
         }
       }
@@ -276,22 +272,17 @@ void Map::transformLayer(const ObjectID& object_id,
 
   Interpolator<TsdfVoxel> interpolator(object_layer);
 
-  ObjectID last_object_id;
-  ObjectVolume* last_object_volume = nullptr;
-  Block<TsdfVoxel>::Ptr last_tsdf_block = nullptr;
-  BlockIndex last_tsdf_block_idx;
-
   // We now go through all the blocks in the output layer and interpolate the
   // input layer at the center of each output voxel position. For each
   // interpolated voxel, activate the object_id in the corresponding map layer
   // voxel.
   for (const BlockIndex& block_idx : block_idx_set) {
     typename Block<TsdfVoxel>::Ptr block =
-        layer_out->allocateBlockPtrByIndex(block_idx);
+        object_layer->allocateBlockPtrByIndex(block_idx);
 
     // Fetch corresponding block in the map layer.
     typename Block<MOVoxel>::Ptr mo_block =
-        getMapLayerPtr()->allocateBlockPtrByIndex(block_idx);
+        map_layer_->allocateBlockPtrByIndex(block_idx);
 
     for (IndexElement voxel_idx = 0;
          voxel_idx < static_cast<IndexElement>(block->num_voxels());
@@ -317,7 +308,7 @@ void Map::transformLayer(const ObjectID& object_id,
     }
 
     if (!block->has_data()) {
-      layer_out->removeBlock(block_idx);
+      object_layer->removeBlock(block_idx);
     } else {
       mo_block->updated().set();
     }
@@ -325,7 +316,7 @@ void Map::transformLayer(const ObjectID& object_id,
 
   // TODO(margaritaG): potential memory leak,
   // delete the previous tsdf_layer?
-  *object_layer = *layer_out;
+  //*object_layer = *layer_out;
 }
 
 void Map::removeObject(const ObjectID& object_id) {
