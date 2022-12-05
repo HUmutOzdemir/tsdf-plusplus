@@ -17,6 +17,8 @@
 #include <voxblox/core/common.h>
 #include <voxblox/utils/timing.h>
 
+#include <tsdf_plusplus_msg/Reward.h>
+
 class Controller {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -68,6 +70,9 @@ class Controller {
   // for experimental evaluation in the publication.
   bool removeObjectsCallback(std_srvs::Empty::Request& /*request*/,
                              std_srvs::Empty::Response& /*response*/);
+
+  bool getRewardCallback(std_srvs::Empty::Request& /*request*/,
+                         std_srvs::Empty::Response& /*response*/);
 
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
@@ -153,9 +158,11 @@ class Controller {
   ros::ServiceServer save_objects_srv_;
   ros::ServiceServer move_object_srv_;
   ros::ServiceServer remove_objects_srv_;
+  ros::ServiceServer get_reward_srv_;
 
   // Publishers.
   ros::Publisher mesh_pub_;
+  ros::Publisher reward_pub_;
 };
 
 #endif  // TSDF_PLUSPLUS_ROS_CONTROLLER_H_

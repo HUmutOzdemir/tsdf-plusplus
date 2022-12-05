@@ -105,12 +105,14 @@ Controller::Controller(const ros::NodeHandle& nh,
       "generate_mesh", &Controller::generateMeshCallback, this);
   save_objects_srv_ = nh_private_.advertiseService(
       "save_objects", &Controller::saveObjectsCallback, this);
-
   remove_objects_srv_ = nh_private_.advertiseService(
       "remove_objects", &Controller::removeObjectsCallback, this);
+  get_reward_srv_ = nh_private_.advertiseService(
+      "get_reward", &Controller::removeObjectsCallback, this);
 
   // Advertise publishers.
   mesh_pub_ = nh_private_.advertise<voxblox_msgs::Mesh>("mesh", 1, true);
+  reward_pub_ = nh_private_.advertise<tsdf_plusplus_msg::Reward>("reward", 1, true);
 }
 
 Controller::~Controller() { vizualizer_thread_.join(); }
@@ -545,15 +547,41 @@ bool Controller::saveObjectsCallback(std_srvs::Empty::Request& /*request*/,
   }
 }
 
+bool Controller::getRewardCallback(std_srvs::Empty::Request& /*request*/,
+                                       std_srvs::Empty::Response&
+                                       /*response*/) {
+  tsdf_plusplus_msg::Reward reward;
+  reward.number_of_objects = 0;
+  reward.number_of_occupied_voxels = 0;
+
+  std::map<ObjectID, ObjectVolume*>* object_volumes =
+      map_->getObjectVolumesPtr();
+  for (const auto& pair : *object_volumes) {
+    // Count Number of Objects
+    reward.number_of_objects++;
+    // Count Number of Voxels
+    Layer<TsdfVoxel>* object_layer = pair.second->getTsdfLayerPtr();
+    BlockIndexList all_object_blocks;
+    object_layer->getAllAllocatedBlocks(&all_object_blocks);
+    reward.number_of_occupied_voxels+=object_layer->getNumberOfAllocatedBlocks();
+
+    // Store Object Level Stats
+    reward.object_ids.push_back(pair.first);
+    reward.object_number_of_voxels.push_back(object_layer->getNumberOfAllocatedBlocks());
+  }
+
+  reward_pub_.publish(reward);
+}
+
 bool Controller::removeObjectsCallback(std_srvs::Empty::Request& /*request*/,
                                        std_srvs::Empty::Response&
                                        /*response*/) {
   std::map<ObjectID, ObjectVolume*>* object_volumes =
       map_->getObjectVolumesPtr();
+
+  // Remove all Objects
   for (const auto& pair : *object_volumes) {
-    if (pair.first != 1u) {
-      map_->removeObject(pair.first);
-    }
+    map_->removeObject(pair.first);
   }
   *mesh_layer_updated_ = true;
 

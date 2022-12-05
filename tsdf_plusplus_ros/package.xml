@@ -14,6 +14,7 @@
   <buildtool_depend>catkin_simple</buildtool_depend>
 
   <depend>tsdf_plusplus</depend>
+  <depend>tsdf_plusplus_msg</depend>
   <depend>voxblox</depend>
   <depend>voxblox_msgs</depend>
   <depend>voxblox_ros</depend>
