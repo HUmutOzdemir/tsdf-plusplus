@@ -9,17 +9,17 @@
 
 using namespace voxblox;
 
-Map::Map(const Config& config)
+Map::Map(const Config &config)
     : config_(config),
       map_layer_(new Layer<MOVoxel>(config.voxel_size, config.voxels_per_side)),
       highest_object_id_(new ObjectID()) {
   voxels_per_side_inv_ =
       1.0f / static_cast<FloatingPoint>(config.voxels_per_side);
   block_size_ = config.voxel_size * config.voxels_per_side;
-  object_volumes_.reset(new std::map<ObjectID, ObjectVolume*>());
+  object_volumes_.reset(new std::map<ObjectID, ObjectVolume *>());
 }
 
-ObjectVolume* Map::getObjectVolumePtrById(const ObjectID& object_id) {
+ObjectVolume *Map::getObjectVolumePtrById(const ObjectID &object_id) {
   std::shared_lock<std::shared_timed_mutex> object_volumes_reader_lock(
       object_volumes_mutex_);
   auto object_volume_it = object_volumes_->find(object_id);
@@ -31,9 +31,10 @@ ObjectVolume* Map::getObjectVolumePtrById(const ObjectID& object_id) {
   }
 }
 
-ObjectVolume* Map::allocateObjectVolumePtrById(
-    const Point centroid, const SemanticClass& semantic_class,
-    const ObjectID& object_id) {
+ObjectVolume *
+Map::allocateObjectVolumePtrById(const Point centroid,
+                                 const SemanticClass &semantic_class,
+                                 const ObjectID &object_id) {
   std::lock_guard<std::shared_timed_mutex> object_volumes_writer_lock(
       object_volumes_mutex_);
 
@@ -43,7 +44,7 @@ ObjectVolume* Map::allocateObjectVolumePtrById(
     return object_volume_it->second;
   }
 
-  ObjectVolume* object_volume = new ObjectVolume(
+  ObjectVolume *object_volume = new ObjectVolume(
       config_.voxel_size, config_.voxels_per_side, centroid, semantic_class);
   auto insert_status = object_volumes_->emplace(object_id, object_volume);
   CHECK(insert_status.second)
@@ -51,11 +52,11 @@ ObjectVolume* Map::allocateObjectVolumePtrById(
   return insert_status.first->second;
 }
 
-TsdfVoxel* Map::allocateStorageAndGetVoxelPtr(
-    const Point centroid, const SemanticClass& semantic_class,
-    const ObjectID& object_id, const GlobalIndex& global_voxel_idx,
-    ObjectVolume** last_object_volume, ObjectID* last_object_id,
-    Block<TsdfVoxel>::Ptr* last_tsdf_block, BlockIndex* last_tsdf_block_idx) {
+TsdfVoxel *Map::allocateStorageAndGetVoxelPtr(
+    const Point centroid, const SemanticClass &semantic_class,
+    const ObjectID &object_id, const GlobalIndex &global_voxel_idx,
+    ObjectVolume **last_object_volume, ObjectID *last_object_id,
+    Block<TsdfVoxel>::Ptr *last_tsdf_block, BlockIndex *last_tsdf_block_idx) {
   CHECK_NOTNULL(last_object_volume);
   CHECK_NOTNULL(last_object_id);
   CHECK_NOTNULL(last_tsdf_block);
@@ -108,11 +109,11 @@ TsdfVoxel* Map::allocateStorageAndGetVoxelPtr(
   return &((*last_tsdf_block)->getVoxelByVoxelIndex(local_voxel_idx));
 }
 
-TsdfVoxel* Map::getTsdfVoxelPtrByVoxelIndex(
-    const ObjectID& object_id, const BlockIndex& block_idx,
-    const VoxelIndex& voxel_index, ObjectVolume** last_object_volume,
-    ObjectID* last_object_id, Block<TsdfVoxel>::Ptr* last_tsdf_block,
-    BlockIndex* last_tsdf_block_idx) {
+TsdfVoxel *Map::getTsdfVoxelPtrByVoxelIndex(
+    const ObjectID &object_id, const BlockIndex &block_idx,
+    const VoxelIndex &voxel_index, ObjectVolume **last_object_volume,
+    ObjectID *last_object_id, Block<TsdfVoxel>::Ptr *last_tsdf_block,
+    BlockIndex *last_tsdf_block_idx) {
   CHECK_NOTNULL(last_object_volume);
   CHECK_NOTNULL(last_object_id);
   CHECK_NOTNULL(last_tsdf_block);
@@ -157,11 +158,11 @@ TsdfVoxel* Map::getTsdfVoxelPtrByVoxelIndex(
   return &((*last_tsdf_block)->getVoxelByVoxelIndex(voxel_index));
 }
 
-TsdfVoxel* Map::getTsdfVoxelPtrByLinearIndex(
-    const ObjectID& object_id, const BlockIndex& block_idx,
-    const IndexElement& voxel_index, ObjectVolume** last_object_volume,
-    ObjectID* last_object_id, Block<TsdfVoxel>::Ptr* last_tsdf_block,
-    BlockIndex* last_tsdf_block_idx) {
+TsdfVoxel *Map::getTsdfVoxelPtrByLinearIndex(
+    const ObjectID &object_id, const BlockIndex &block_idx,
+    const IndexElement &voxel_index, ObjectVolume **last_object_volume,
+    ObjectID *last_object_id, Block<TsdfVoxel>::Ptr *last_tsdf_block,
+    BlockIndex *last_tsdf_block_idx) {
   CHECK_NOTNULL(last_object_volume);
   CHECK_NOTNULL(last_object_id);
   CHECK_NOTNULL(last_tsdf_block);
@@ -206,23 +207,23 @@ TsdfVoxel* Map::getTsdfVoxelPtrByLinearIndex(
   return &((*last_tsdf_block)->getVoxelByLinearIndex(voxel_index));
 }
 
-void Map::transformLayer(const ObjectID& object_id,
-                         const Transformation& T_out_in) {
-  ObjectVolume* object_volume = getObjectVolumePtrById(object_id);
-  Layer<TsdfVoxel>* object_layer = object_volume->getTsdfLayerPtr();
+void Map::transformLayer(const ObjectID &object_id,
+                         const Transformation &T_out_in) {
+  ObjectVolume *object_volume = getObjectVolumePtrById(object_id);
+  Layer<TsdfVoxel> *object_layer = object_volume->getTsdfLayerPtr();
 
   // First, deactivate all voxels in the map layer
   // corresponding to the object_volume.
   BlockIndexList all_object_blocks;
   object_layer->getAllAllocatedBlocks(&all_object_blocks);
 
-  for (const BlockIndex& block_index : all_object_blocks) {
+  for (const BlockIndex &block_index : all_object_blocks) {
     Block<MOVoxel>::Ptr mo_block = map_layer_->getBlockPtrByIndex(block_index);
 
     for (IndexElement voxel_idx = 0;
          voxel_idx < static_cast<IndexElement>(mo_block->num_voxels());
          ++voxel_idx) {
-      MOVoxel& mo_voxel = mo_block->getVoxelByLinearIndex(voxel_idx);
+      MOVoxel &mo_voxel = mo_block->getVoxelByLinearIndex(voxel_idx);
 
       if (mo_voxel.active_object.object_id == object_id) {
         mo_voxel.active_object = mo_voxel.inactive_object;
@@ -236,7 +237,7 @@ void Map::transformLayer(const ObjectID& object_id,
   }
 
   // Next, transform the object_volume.
-  Layer<TsdfVoxel>* layer_out = new Layer<TsdfVoxel>(
+  Layer<TsdfVoxel> *layer_out = new Layer<TsdfVoxel>(
       object_layer->voxel_size(), object_layer->voxels_per_side());
 
   // Mark all the blocks in the output layer that may be filled by the
@@ -244,7 +245,7 @@ void Map::transformLayer(const ObjectID& object_id,
   // spheres of diameter sqrt(3)*block_size).
   IndexSet block_idx_set;
 
-  for (const BlockIndex& block_index : all_object_blocks) {
+  for (const BlockIndex &block_index : all_object_blocks) {
     const Point c_in =
         getCenterPointFromGridIndex(block_index, object_layer->block_size());
 
@@ -277,7 +278,7 @@ void Map::transformLayer(const ObjectID& object_id,
   Interpolator<TsdfVoxel> interpolator(object_layer);
 
   ObjectID last_object_id;
-  ObjectVolume* last_object_volume = nullptr;
+  ObjectVolume *last_object_volume = nullptr;
   Block<TsdfVoxel>::Ptr last_tsdf_block = nullptr;
   BlockIndex last_tsdf_block_idx;
 
@@ -285,7 +286,7 @@ void Map::transformLayer(const ObjectID& object_id,
   // input layer at the center of each output voxel position. For each
   // interpolated voxel, activate the object_id in the corresponding map layer
   // voxel.
-  for (const BlockIndex& block_idx : block_idx_set) {
+  for (const BlockIndex &block_idx : block_idx_set) {
     typename Block<TsdfVoxel>::Ptr block =
         layer_out->allocateBlockPtrByIndex(block_idx);
 
@@ -296,16 +297,16 @@ void Map::transformLayer(const ObjectID& object_id,
     for (IndexElement voxel_idx = 0;
          voxel_idx < static_cast<IndexElement>(block->num_voxels());
          ++voxel_idx) {
-      TsdfVoxel& voxel = block->getVoxelByLinearIndex(voxel_idx);
+      TsdfVoxel &voxel = block->getVoxelByLinearIndex(voxel_idx);
       // Map voxel in which to activate the object being moved.
-      MOVoxel& mo_voxel = mo_block->getVoxelByLinearIndex(voxel_idx);
+      MOVoxel &mo_voxel = mo_block->getVoxelByLinearIndex(voxel_idx);
 
       // Find voxel centers location in the input.
       const Point voxel_center =
           T_in_out * block->computeCoordinatesFromLinearIndex(voxel_idx);
 
       // Interpolate voxel.
-      if (interpolator.getVoxel(voxel_center, &voxel, true)) {
+      if (interpolator.getVoxel(voxel_center, &voxel, false)) {
         block->has_data() = true;
 
         // Deactivate previous object, activate the interpolated one.
@@ -328,22 +329,22 @@ void Map::transformLayer(const ObjectID& object_id,
   *object_layer = *layer_out;
 }
 
-void Map::removeObject(const ObjectID& object_id) {
-  ObjectVolume* object_volume = getObjectVolumePtrById(object_id);
-  Layer<TsdfVoxel>* object_layer = object_volume->getTsdfLayerPtr();
+void Map::removeObject(const ObjectID &object_id) {
+  ObjectVolume *object_volume = getObjectVolumePtrById(object_id);
+  Layer<TsdfVoxel> *object_layer = object_volume->getTsdfLayerPtr();
 
   // Deactivate all voxels in the map layer
   // corresponding to the object_volume.
   BlockIndexList all_object_blocks;
   object_layer->getAllAllocatedBlocks(&all_object_blocks);
 
-  for (const BlockIndex& block_index : all_object_blocks) {
+  for (const BlockIndex &block_index : all_object_blocks) {
     Block<MOVoxel>::Ptr mo_block = map_layer_->getBlockPtrByIndex(block_index);
 
     for (IndexElement voxel_idx = 0;
          voxel_idx < static_cast<IndexElement>(mo_block->num_voxels());
          ++voxel_idx) {
-      MOVoxel& mo_voxel = mo_block->getVoxelByLinearIndex(voxel_idx);
+      MOVoxel &mo_voxel = mo_block->getVoxelByLinearIndex(voxel_idx);
 
       if (mo_voxel.active_object.object_id == object_id) {
         mo_voxel.active_object = mo_voxel.inactive_object;

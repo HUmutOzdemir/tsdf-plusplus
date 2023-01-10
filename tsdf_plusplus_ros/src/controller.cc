@@ -24,26 +24,22 @@
 
 #include "tsdf_plusplus_ros/ros_params.h"
 
-Controller::Controller(const ros::NodeHandle& nh,
-                       const ros::NodeHandle& nh_private)
+Controller::Controller(const ros::NodeHandle &nh,
+                       const ros::NodeHandle &nh_private)
     : Controller(nh, nh_private, getMapConfigFromRosParam(nh_private),
                  getIntegratorConfigFromRosParam(nh_private),
                  getICPConfigFromRosParam(nh_private),
                  getMeshIntegratorConfigFromRosParam(nh_private)) {}
 
-Controller::Controller(const ros::NodeHandle& nh,
-                       const ros::NodeHandle& nh_private,
-                       const Map::Config& map_config,
-                       const Integrator::Config& integrator_config,
-                       const ICP::Config& icp_config,
-                       const MOMeshIntegrator::Config& mesh_config)
-    : nh_(nh),
-      nh_private_(nh_private),
-      frame_number_(0u),
-      world_frame_("world"),
-      sensor_frame_(""),
-      using_ground_truth_segmentation_(false),
-      object_tracking_enabled_(false) {
+Controller::Controller(const ros::NodeHandle &nh,
+                       const ros::NodeHandle &nh_private,
+                       const Map::Config &map_config,
+                       const Integrator::Config &integrator_config,
+                       const ICP::Config &icp_config,
+                       const MOMeshIntegrator::Config &mesh_config)
+    : nh_(nh), nh_private_(nh_private), frame_number_(0u),
+      world_frame_("world"), sensor_frame_(""),
+      using_ground_truth_segmentation_(false), object_tracking_enabled_(false) {
   getConfigFromRosParam(nh_private);
 
   // Subcribe to input pointcloud.
@@ -115,7 +111,7 @@ Controller::Controller(const ros::NodeHandle& nh,
 
 Controller::~Controller() { vizualizer_thread_.join(); }
 
-void Controller::getConfigFromRosParam(const ros::NodeHandle& nh_private) {
+void Controller::getConfigFromRosParam(const ros::NodeHandle &nh_private) {
   nh_private.param("world_frame", world_frame_, world_frame_);
   nh_private.param("sensor_frame", sensor_frame_, sensor_frame_);
 
@@ -155,12 +151,12 @@ void Controller::getConfigFromRosParam(const ros::NodeHandle& nh_private) {
 }
 
 void Controller::segmentPointcloudCallback(
-    const sensor_msgs::PointCloud2::Ptr& segment_pcl_msg) {
+    const sensor_msgs::PointCloud2::Ptr &segment_pcl_msg) {
   bool frame_complete = segment_pcl_msg->header.stamp - last_segment_msg_time_ >
                         min_time_between_msgs_;
   if (frame_complete && current_frame_segments_.size() > 0u) {
-    LOG(INFO) << "Integrating frame " << ++frame_number_ << " with timestamp "
-              << std::fixed << last_segment_msg_time_.toSec();
+    LOG(ERROR) << "Integrating frame " << ++frame_number_ << " with timestamp "
+               << std::fixed << last_segment_msg_time_.toSec();
     integrateFrame();
 
     if (write_frames_to_file_) {
@@ -176,7 +172,7 @@ void Controller::segmentPointcloudCallback(
 }
 
 void Controller::processSegmentPointcloud(
-    const sensor_msgs::PointCloud2::Ptr& segment_pcl_msg) {
+    const sensor_msgs::PointCloud2::Ptr &segment_pcl_msg) {
   // Look up transform from camera frame to world frame.
   if (lookupTransformTF(segment_pcl_msg->header.frame_id, world_frame_,
                         segment_pcl_msg->header.stamp, &T_G_C_)) {
@@ -190,7 +186,7 @@ void Controller::processSegmentPointcloud(
       }
     }
 
-    Segment* segment;
+    Segment *segment;
     if (using_ground_truth_segmentation_) {
       pcl::PointCloud<GTInputPointType> pointcloud_pcl;
       pcl::moveFromROSMsg(*segment_pcl_msg, pointcloud_pcl);
@@ -215,10 +211,10 @@ void Controller::processSegmentPointcloud(
   }
 }
 
-bool Controller::lookupTransformTF(const std::string& from_frame,
-                                   const std::string& to_frame,
-                                   const ros::Time& timestamp,
-                                   Transformation* transform) {
+bool Controller::lookupTransformTF(const std::string &from_frame,
+                                   const std::string &to_frame,
+                                   const ros::Time &timestamp,
+                                   Transformation *transform) {
   CHECK_NOTNULL(transform);
 
   tf::StampedTransform tf_transform;
@@ -238,7 +234,7 @@ bool Controller::lookupTransformTF(const std::string& from_frame,
   try {
     tf_listener_.lookupTransform(to_frame, from_frame_modified, timestamp,
                                  tf_transform);
-  } catch (tf::TransformException& ex) {  // NOLINT
+  } catch (tf::TransformException &ex) { // NOLINT
     ROS_ERROR_STREAM(
         "Error getting TF transform from sensor data: " << ex.what());
     return false;
@@ -258,7 +254,7 @@ void Controller::integrateFrame() {
     tic_toc.tic();
     // All segments in the current frame have been processed and their
     // parwise overlap with objects in the map have been computed, now make an
-    // informed decision about which segment gets assigned which object_id.
+    // ERRORrmed decision about which segment gets assigned which object_id.
     integrator_->assignObjectIds(&current_frame_segments_,
                                  &object_segment_overlap_,
                                  &object_merged_segments_);
@@ -283,13 +279,13 @@ void Controller::integrateFrame() {
     tic_toc.tic();
 
     if (using_ground_truth_segmentation_) {
-      for (Segment* segment : current_frame_segments_) {
+      for (Segment *segment : current_frame_segments_) {
         integrator_->integrateSegment(*segment);
       }
 
     } else {
-      for (const auto& pair : object_merged_segments_) {
-        Segment* segment = pair.second;
+      for (const auto &pair : object_merged_segments_) {
+        Segment *segment = pair.second;
         segment->convertPointcloud();
         integrator_->integrateSegment(*segment);
       }
@@ -298,11 +294,11 @@ void Controller::integrateFrame() {
     integrate_timer.Stop();
 
     if (using_ground_truth_segmentation_) {
-      LOG(INFO) << "Integrated " << current_frame_segments_.size()
-                << " segments in " << tic_toc.toc() << " ms. ";
+      LOG(ERROR) << "Integrated " << current_frame_segments_.size()
+                 << " segments in " << tic_toc.toc() << " ms. ";
     } else {
-      LOG(INFO) << "Integrated " << object_merged_segments_.size()
-                << " segments in " << tic_toc.toc() << " ms. ";
+      LOG(ERROR) << "Integrated " << object_merged_segments_.size()
+                 << " segments in " << tic_toc.toc() << " ms. ";
     }
 
     // Update the camera parameters of the visualizer to
@@ -310,17 +306,17 @@ void Controller::integrateFrame() {
     *camera_extrinsics_ = T_G_C_.getTransformationMatrix();
   }
 
-  LOG(INFO) << "Timings: " << std::endl
-            << voxblox::timing::Timing::Print() << std::endl;
+  LOG(ERROR) << "Timings: " << std::endl
+             << voxblox::timing::Timing::Print() << std::endl;
 }
 
 void Controller::integrateSemanticClasses() {
-  for (const auto& pair : object_merged_segments_) {
-    Segment* segment = pair.second;
+  for (const auto &pair : object_merged_segments_) {
+    Segment *segment = pair.second;
     if (segment->semantic_class_ == BackgroundClass) {
       continue;
     }
-    ObjectVolume* object_volume =
+    ObjectVolume *object_volume =
         map_->getObjectVolumePtrById(segment->object_id_);
     if (object_volume) {
       object_volume->setSemanticClass(segment->semantic_class_);
@@ -330,8 +326,8 @@ void Controller::integrateSemanticClasses() {
 
 void Controller::trackObjects() {
   // Track and update the pose of objects in the map.
-  for (Segment* segment : current_frame_segments_) {
-    ObjectVolume* object_volume =
+  for (Segment *segment : current_frame_segments_) {
+    ObjectVolume *object_volume =
         map_->getObjectVolumePtrById(segment->object_id_);
 
     if (object_volume) {
@@ -341,11 +337,10 @@ void Controller::trackObjects() {
         // and no semantics, we use thresholds on the object segment size
         // to differentiate between small moving foreground objects and
         // large static background structures.
-        if (segment->points_C_.size() > 20000 ||
-            segment->points_C_.size() < 2000) {
-          LOG(INFO) << "Skipping pose tracking of object segment as its "
-                       "size is too large or too low. (number of points: "
-                    << segment->points_C_.size() << ").";
+        if (segment->object_id_ % 2 == 1) {
+          LOG(ERROR) << "Skipping pose tracking of object segment as its "
+                        "size is too large or too low. (number of points: "
+                     << segment->points_C_.size() << ").";
           continue;
         }
       } else {
@@ -357,9 +352,9 @@ void Controller::trackObjects() {
         }
         // TODO(margaritaG): parametrize this nicely.
         if (segment->points_C_.size() > 100000) {
-          LOG(INFO) << "Skipping pose tracking of object segment as its "
-                       "size is too large. (number of points: "
-                    << segment->points_C_.size() << ").";
+          LOG(ERROR) << "Skipping pose tracking of object segment as its "
+                        "size is too large. (number of points: "
+                     << segment->points_C_.size() << ").";
           continue;
         }
       }
@@ -412,6 +407,8 @@ void Controller::trackObjects() {
         LOG(ERROR) << "ICP has not converged, assuming object did not "
                       "move.";
         G_T_S_O = Eigen::Matrix4f::Identity();
+      } else {
+        LOG(ERROR) << "Calculated Transformation Matrix by ICP" << G_T_S_O;
       }
 
       G_T_O_S = G_T_S_O.inverse();
@@ -431,7 +428,7 @@ void Controller::trackObjects() {
 }
 
 void Controller::clearFrame() {
-  for (Segment* segment : current_frame_segments_) {
+  for (Segment *segment : current_frame_segments_) {
     delete segment;
   }
 
@@ -440,7 +437,7 @@ void Controller::clearFrame() {
   object_merged_segments_.clear();
 }
 
-void Controller::updateMeshEvent(const ros::TimerEvent& event) {
+void Controller::updateMeshEvent(const ros::TimerEvent &event) {
   std::lock_guard<std::mutex> mesh_layer_lock(*mesh_layer_mutex_);
   std::lock_guard<std::mutex> map_lock(map_mutex_);
 
@@ -471,8 +468,8 @@ void Controller::updateMeshEvent(const ros::TimerEvent& event) {
   }
 }
 
-bool Controller::generateMeshCallback(std_srvs::Empty::Request& /*request*/,
-                                      std_srvs::Empty::Response&
+bool Controller::generateMeshCallback(std_srvs::Empty::Request & /*request*/,
+                                      std_srvs::Empty::Response &
                                       /*response*/) {
   {
     std::lock_guard<std::mutex> mesh_layer_lock(*mesh_layer_mutex_);
@@ -506,9 +503,10 @@ bool Controller::generateMeshCallback(std_srvs::Empty::Request& /*request*/,
     if (!mesh_filename_.empty()) {
       const bool success = outputMeshLayerAsPly(mesh_filename_, *mesh_layer_);
       if (success) {
-        LOG(INFO) << "Output file as PLY: " << mesh_filename_.c_str();
+        LOG(ERROR) << "Output file as PLY: " << mesh_filename_.c_str();
       } else {
-        LOG(INFO) << "Failed to output mesh as PLY: " << mesh_filename_.c_str();
+        LOG(ERROR) << "Failed to output mesh as PLY: "
+                   << mesh_filename_.c_str();
       }
     }
   }
@@ -516,13 +514,13 @@ bool Controller::generateMeshCallback(std_srvs::Empty::Request& /*request*/,
   return true;
 }
 
-bool Controller::saveObjectsCallback(std_srvs::Empty::Request& /*request*/,
-                                     std_srvs::Empty::Response&
+bool Controller::saveObjectsCallback(std_srvs::Empty::Request & /*request*/,
+                                     std_srvs::Empty::Response &
                                      /*response*/) {
-  std::map<ObjectID, ObjectVolume*>* object_volumes =
+  std::map<ObjectID, ObjectVolume *> *object_volumes =
       map_->getObjectVolumesPtr();
 
-  for (const auto& pair : *object_volumes) {
+  for (const auto &pair : *object_volumes) {
     if (!using_ground_truth_segmentation_ &&
         pair.second->getSemanticClass() == BackgroundClass &&
         pair.first != 2u) {
@@ -538,19 +536,19 @@ bool Controller::saveObjectsCallback(std_srvs::Empty::Request& /*request*/,
         voxblox::io::PlyOutputTypes::kSdfIsosurface);
 
     if (success) {
-      LOG(INFO) << "Output object file as PLY: " << mesh_filename.c_str();
+      LOG(ERROR) << "Output object file as PLY: " << mesh_filename.c_str();
     } else {
-      LOG(INFO) << "Failed to output mesh as PLY:" << mesh_filename.c_str();
+      LOG(ERROR) << "Failed to output mesh as PLY:" << mesh_filename.c_str();
     }
   }
 }
 
-bool Controller::removeObjectsCallback(std_srvs::Empty::Request& /*request*/,
-                                       std_srvs::Empty::Response&
+bool Controller::removeObjectsCallback(std_srvs::Empty::Request & /*request*/,
+                                       std_srvs::Empty::Response &
                                        /*response*/) {
-  std::map<ObjectID, ObjectVolume*>* object_volumes =
+  std::map<ObjectID, ObjectVolume *> *object_volumes =
       map_->getObjectVolumesPtr();
-  for (const auto& pair : *object_volumes) {
+  for (const auto &pair : *object_volumes) {
     if (pair.first != 1u) {
       map_->removeObject(pair.first);
     }
