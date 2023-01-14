@@ -337,7 +337,8 @@ void Controller::trackObjects() {
         // and no semantics, we use thresholds on the object segment size
         // to differentiate between small moving foreground objects and
         // large static background structures.
-        if (segment->object_id_ % 2 == 1) {
+        if (segment->object_id_ % 2 == 1 ||
+            segment->points_C_.size() > 100000) {
           LOG(ERROR) << "Skipping pose tracking of object segment as its "
                         "size is too large or too low. (number of points: "
                      << segment->points_C_.size() << ").";
