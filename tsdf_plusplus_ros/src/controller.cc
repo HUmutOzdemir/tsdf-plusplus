@@ -59,6 +59,10 @@ Controller::Controller(const ros::NodeHandle &nh,
       nh_.subscribe(segment_pointcloud_topic, pointcloud_queue_size,
                     &Controller::segmentPointcloudCallback, this);
 
+  movement_sub_ =
+      nh_.subscribe("/camera/object_movements", pointcloud_queue_size,
+                    &Controller::movementInformationCallback, this);
+
   // Initialize map and integrator.
   map_.reset(new Map(map_config));
   integrator_.reset(new Integrator(integrator_config, map_));

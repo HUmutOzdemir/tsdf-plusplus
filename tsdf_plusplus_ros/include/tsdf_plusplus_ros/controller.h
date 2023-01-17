@@ -78,6 +78,7 @@ protected:
 
   // Data subscribers.
   ros::Subscriber pointcloud_sub_;
+  ros::Subscriber movement_sub_;
 
   // Will throttle to this message rate.
   ros::Duration min_time_between_msgs_;
