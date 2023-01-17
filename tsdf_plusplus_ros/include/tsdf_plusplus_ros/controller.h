@@ -14,32 +14,33 @@
 #include <tsdf_plusplus/integrator/integrator.h>
 #include <tsdf_plusplus/mesh/mesh_integrator.h>
 #include <tsdf_plusplus/visualizer/visualizer.h>
+#include <tsdf_plusplus_msgs/MovementInfo.h>
 #include <voxblox/core/common.h>
 #include <voxblox/utils/timing.h>
 
 class Controller {
- public:
+public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  Controller(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
+  Controller(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private);
 
-  Controller(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private,
-             const Map::Config& map_config,
-             const Integrator::Config& integrator_config,
-             const ICP::Config& icp_config,
-             const MOMeshIntegrator::Config& mesh_config);
+  Controller(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private,
+             const Map::Config &map_config,
+             const Integrator::Config &integrator_config,
+             const ICP::Config &icp_config,
+             const MOMeshIntegrator::Config &mesh_config);
 
   virtual ~Controller();
 
-  void getConfigFromRosParam(const ros::NodeHandle& nh_private);
+  void getConfigFromRosParam(const ros::NodeHandle &nh_private);
 
- protected:
+protected:
   void processSegmentPointcloud(
-      const sensor_msgs::PointCloud2::Ptr& segment_pcl_msg);
+      const sensor_msgs::PointCloud2::Ptr &segment_pcl_msg);
 
-  bool lookupTransformTF(const std::string& from_frame,
-                         const std::string& to_frame,
-                         const ros::Time& timestamp, Transformation* transform);
+  bool lookupTransformTF(const std::string &from_frame,
+                         const std::string &to_frame,
+                         const ros::Time &timestamp, Transformation *transform);
 
   void integrateFrame();
 
@@ -53,21 +54,24 @@ class Controller {
 
   void clearFrame();
 
-  void updateMeshEvent(const ros::TimerEvent& event);
+  void updateMeshEvent(const ros::TimerEvent &event);
 
   void segmentPointcloudCallback(
-      const sensor_msgs::PointCloud2::Ptr& segment_pcl_msg);
+      const sensor_msgs::PointCloud2::Ptr &segment_pcl_msg);
 
-  bool generateMeshCallback(std_srvs::Empty::Request& /*request*/,
-                            std_srvs::Empty::Response& /*response*/);
+  void movementInformationCallback(
+      const tsdf_plusplus_msgs::MovementInfo::Ptr &movement_info);
 
-  bool saveObjectsCallback(std_srvs::Empty::Request& /*request*/,
-                           std_srvs::Empty::Response& /*response*/);
+  bool generateMeshCallback(std_srvs::Empty::Request & /*request*/,
+                            std_srvs::Empty::Response & /*response*/);
+
+  bool saveObjectsCallback(std_srvs::Empty::Request & /*request*/,
+                           std_srvs::Empty::Response & /*response*/);
 
   // Simulate removal of foreground objects, only used
   // for experimental evaluation in the publication.
-  bool removeObjectsCallback(std_srvs::Empty::Request& /*request*/,
-                             std_srvs::Empty::Response& /*response*/);
+  bool removeObjectsCallback(std_srvs::Empty::Request & /*request*/,
+                             std_srvs::Empty::Response & /*response*/);
 
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
@@ -100,7 +104,7 @@ class Controller {
   bool using_ground_truth_segmentation_;
 
   // List of segments observed in the current frame.
-  std::vector<Segment*> current_frame_segments_;
+  std::vector<Segment *> current_frame_segments_;
 
   // Pairwise overlap (number of points) between segments
   // in the current frame and objects in the map.
@@ -108,11 +112,15 @@ class Controller {
 
   // Segments assigned to the same object_id during the
   // segmentation propagation step are merged together.
-  std::map<ObjectID, Segment*> object_merged_segments_;
+  std::map<ObjectID, Segment *> object_merged_segments_;
 
   // ICP.
   bool object_tracking_enabled_;
+  bool ground_truth_tracking_;
   std::shared_ptr<ICP> icp_;
+
+  // Object Movement Storage
+  std::map<ObjectID, Eigen::Matrix4f> object_movements_;
 
   // Maps and integrators.
   std::shared_ptr<Map> map_;
@@ -158,4 +166,4 @@ class Controller {
   ros::Publisher mesh_pub_;
 };
 
-#endif  // TSDF_PLUSPLUS_ROS_CONTROLLER_H_
+#endif // TSDF_PLUSPLUS_ROS_CONTROLLER_H_

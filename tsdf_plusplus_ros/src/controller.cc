@@ -16,6 +16,7 @@
 #include <tsdf_plusplus/mesh/mesh_integrator.h>
 #include <tsdf_plusplus/utils/conversions.h>
 #include <tsdf_plusplus/utils/file_utils.h>
+#include <tsdf_plusplus_msgs/TransformationMatrix.h>
 #include <voxblox/io/mesh_ply.h>
 #include <voxblox/io/sdf_ply.h>
 #include <voxblox_msgs/Mesh.h>
@@ -39,7 +40,8 @@ Controller::Controller(const ros::NodeHandle &nh,
                        const MOMeshIntegrator::Config &mesh_config)
     : nh_(nh), nh_private_(nh_private), frame_number_(0u),
       world_frame_("world"), sensor_frame_(""),
-      using_ground_truth_segmentation_(false), object_tracking_enabled_(false) {
+      using_ground_truth_segmentation_(false), object_tracking_enabled_(false),
+      ground_truth_tracking_(false) {
   getConfigFromRosParam(nh_private);
 
   // Subcribe to input pointcloud.
@@ -123,6 +125,8 @@ void Controller::getConfigFromRosParam(const ros::NodeHandle &nh_private) {
   // Object tracking settings.
   nh_private.param("object_tracking/enable", object_tracking_enabled_,
                    object_tracking_enabled_);
+  nh_private.param("object_tracking/ground_truth_tracking",
+                   ground_truth_tracking_, ground_truth_tracking_);
 
   // Human-readable semantic classes.
   nh_private.param<std::vector<std::string>>(
@@ -147,6 +151,23 @@ void Controller::getConfigFromRosParam(const ros::NodeHandle &nh_private) {
 
   if (verbose_log) {
     FLAGS_stderrthreshold = 0;
+  }
+}
+
+void Controller::movementInformationCallback(
+    const tsdf_plusplus_msgs::MovementInfo::Ptr &movement_info) {
+  // Integrate the Movements if previous movent exists
+  for (int i = 0; i < movement_info->object_ids.size(); i++) {
+    ObjectID object_id_ = movement_info->object_ids[i];
+    // Convert Movement to Eigen Matrix
+    Eigen::Matrix4f movement =
+        Eigen::Map<Eigen::Matrix4f>(movement_info->movements[i].data.data());
+
+    if (object_movements_.find(object_id_) == object_movements_.end()) {
+      object_movements_[object_id_] = movement;
+    } else {
+      object_movements_[object_id_] = object_movements_[object_id_] * movement;
+    }
   }
 }
 
@@ -337,12 +358,20 @@ void Controller::trackObjects() {
         // and no semantics, we use thresholds on the object segment size
         // to differentiate between small moving foreground objects and
         // large static background structures.
-        if (segment->object_id_ % 2 == 1 ||
-            segment->points_C_.size() > 100000) {
-          LOG(ERROR) << "Skipping pose tracking of object segment as its "
-                        "size is too large or too low. (number of points: "
-                     << segment->points_C_.size() << ").";
-          continue;
+        if (ground_truth_tracking_) {
+          if (object_movements_.find(segment->object_id_) ==
+              object_movements_.end()) {
+            LOG(ERROR) << "Skipping pose tracking because object is static.";
+            continue;
+          }
+        } else {
+          if (segment->object_id_ % 2 == 1 ||
+              segment->points_C_.size() > 100000) {
+            LOG(ERROR) << "Skipping pose tracking of object segment as its "
+                          "size is too large or too low. (number of points: "
+                       << segment->points_C_.size() << ").";
+            continue;
+          }
         }
       } else {
         // Only track objects that have been at least
@@ -392,27 +421,32 @@ void Controller::trackObjects() {
       Eigen::Matrix4f G_T_O_S = Eigen::Matrix4f::Identity();
       Transformation T_O_S;
 
-      pcl::PointCloud<PointTypeNormal>::Ptr G_segment_pcl_cloud(
-          new pcl::PointCloud<PointTypeNormal>);
-      // Transform segment cloud from camera frame to global frame.
-      pcl::transformPointCloud(*C_segment_pcl_cloud, *G_segment_pcl_cloud,
-                               segment->T_G_C_.getTransformationMatrix());
-
-      Eigen::Matrix4f G_T_S_O = Eigen::Matrix4f::Identity();
-
-      // Align the source: segment point cloud to the target: object model.
-      bool success = icp_->align(G_segment_pcl_cloud, G_model_pcl_cloud,
-                                 Eigen::Matrix4f::Identity(), &G_T_S_O);
-
-      if (!success) {
-        LOG(ERROR) << "ICP has not converged, assuming object did not "
-                      "move.";
-        G_T_S_O = Eigen::Matrix4f::Identity();
+      if (ground_truth_tracking_) {
+        G_T_O_S = object_movements_[segment->object_id_];
+        object_movements_.erase(segment->object_id_);
       } else {
-        LOG(ERROR) << "Calculated Transformation Matrix by ICP" << G_T_S_O;
-      }
+        pcl::PointCloud<PointTypeNormal>::Ptr G_segment_pcl_cloud(
+            new pcl::PointCloud<PointTypeNormal>);
+        // Transform segment cloud from camera frame to global frame.
+        pcl::transformPointCloud(*C_segment_pcl_cloud, *G_segment_pcl_cloud,
+                                 segment->T_G_C_.getTransformationMatrix());
 
-      G_T_O_S = G_T_S_O.inverse();
+        Eigen::Matrix4f G_T_S_O = Eigen::Matrix4f::Identity();
+
+        // Align the source: segment point cloud to the target: object model.
+        bool success = icp_->align(G_segment_pcl_cloud, G_model_pcl_cloud,
+                                   Eigen::Matrix4f::Identity(), &G_T_S_O);
+
+        if (!success) {
+          LOG(ERROR) << "ICP has not converged, assuming object did not "
+                        "move.";
+          G_T_S_O = Eigen::Matrix4f::Identity();
+        } else {
+          LOG(ERROR) << "Calculated Transformation Matrix by ICP" << G_T_S_O;
+        }
+
+        G_T_O_S = G_T_S_O.inverse();
+      }
 
       T_O_S = Transformation().constructAndRenormalizeRotation(G_T_O_S);
 
