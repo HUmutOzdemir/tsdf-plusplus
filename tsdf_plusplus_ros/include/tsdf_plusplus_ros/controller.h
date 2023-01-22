@@ -15,6 +15,7 @@
 #include <tsdf_plusplus/mesh/mesh_integrator.h>
 #include <tsdf_plusplus/visualizer/visualizer.h>
 #include <tsdf_plusplus_msgs/MovementInfo.h>
+#include <tsdf_plusplus_msgs/Reward.h>
 #include <voxblox/core/common.h>
 #include <voxblox/utils/timing.h>
 
@@ -72,6 +73,9 @@ protected:
   // for experimental evaluation in the publication.
   bool removeObjectsCallback(std_srvs::Empty::Request & /*request*/,
                              std_srvs::Empty::Response & /*response*/);
+
+  bool getRewardCallback(std_srvs::Empty::Request & /*request*/,
+                         std_srvs::Empty::Response & /*response*/);
 
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
@@ -162,9 +166,11 @@ protected:
   ros::ServiceServer save_objects_srv_;
   ros::ServiceServer move_object_srv_;
   ros::ServiceServer remove_objects_srv_;
+  ros::ServiceServer get_reward_srv_;
 
   // Publishers.
   ros::Publisher mesh_pub_;
+  ros::Publisher reward_pub_;
 };
 
 #endif // TSDF_PLUSPLUS_ROS_CONTROLLER_H_
