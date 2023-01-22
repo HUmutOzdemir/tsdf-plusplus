@@ -421,39 +421,13 @@ void Controller::trackObjects() {
         }
       }
 
-      timing::Timer icp_preprocess_timer("icp/preprocess");
-
-      Transformation T_G_O = object_volume->getPose();
-
-      // Segment extracted from the current frame.
-      pcl::PointCloud<PointTypeNormal>::Ptr C_segment_pcl_cloud(
-          new pcl::PointCloud<PointTypeNormal>);
-      pcl::copyPointCloud(segment->pointcloud_, *C_segment_pcl_cloud);
-
-      // Object model stored in the map.
-      pcl::PointCloud<PointTypeNormal>::Ptr G_model_pcl_cloud(
-          new pcl::PointCloud<PointTypeNormal>);
-
-      // Mesh the object model and extract a point cloud as the mesh vertices.
-      voxblox::MeshIntegratorConfig config;
-      static constexpr bool kConnectedMesh = true;
-      // TODO(margaritaG): optimize this conversion.
-      convertVoxelGridToPointCloud(*object_volume->getTsdfLayerPtr(), config,
-                                   G_model_pcl_cloud.get(), kConnectedMesh);
-
-      // If the resulting point cloud is empty, skip pose tracking.
-      if (G_model_pcl_cloud->points.size() == 0) {
-        continue;
-      }
-
-      icp_preprocess_timer.Stop();
-
       timing::Timer icp_timer("icp/align");
 
       Eigen::Matrix4f G_T_O_S = Eigen::Matrix4f::Identity();
       Transformation T_O_S;
 
       if (ground_truth_tracking_) {
+        bool is_moved = false;
         while (!object_movements_[segment->object_id_].empty()) {
           // Take the first element
           auto movement = object_movements_[segment->object_id_][0];
@@ -463,13 +437,44 @@ void Controller::trackObjects() {
           // Check the time stamp of the segment and movement
           if (movement.first == segment_time) {
             G_T_O_S = movement.second;
+            is_moved = true;
             break;
           }
         }
         if (object_movements_[segment->object_id_].empty()) {
           object_movements_.erase(segment->object_id_);
         }
+        if (!is_moved) {
+          continue;
+        }
       } else {
+        timing::Timer icp_preprocess_timer("icp/preprocess");
+
+        Transformation T_G_O = object_volume->getPose();
+
+        // Segment extracted from the current frame.
+        pcl::PointCloud<PointTypeNormal>::Ptr C_segment_pcl_cloud(
+            new pcl::PointCloud<PointTypeNormal>);
+        pcl::copyPointCloud(segment->pointcloud_, *C_segment_pcl_cloud);
+
+        // Object model stored in the map.
+        pcl::PointCloud<PointTypeNormal>::Ptr G_model_pcl_cloud(
+            new pcl::PointCloud<PointTypeNormal>);
+
+        // Mesh the object model and extract a point cloud as the mesh vertices.
+        voxblox::MeshIntegratorConfig config;
+        static constexpr bool kConnectedMesh = true;
+        // TODO(margaritaG): optimize this conversion.
+        convertVoxelGridToPointCloud(*object_volume->getTsdfLayerPtr(), config,
+                                     G_model_pcl_cloud.get(), kConnectedMesh);
+
+        // If the resulting point cloud is empty, skip pose tracking.
+        if (G_model_pcl_cloud->points.size() == 0) {
+          continue;
+        }
+
+        icp_preprocess_timer.Stop();
+
         pcl::PointCloud<PointTypeNormal>::Ptr G_segment_pcl_cloud(
             new pcl::PointCloud<PointTypeNormal>);
         // Transform segment cloud from camera frame to global frame.
