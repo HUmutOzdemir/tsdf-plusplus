@@ -4,14 +4,15 @@ depth_image_sub_topic: /camera/depth/image_raw
 
 camera_intrinsics: [112, 0, 112, 0, 112, 112, 0, 0, 1]
 
-voxel_size: 0.02
+voxel_size: 0.01
 truncation_distance_factor: 3.0
 max_ray_length_m: 5.0
 max_weight: 10000
 use_sparsity_compensation_factor: true
 
 object_tracking:
-  enable: false
+  enable: true
+  ground_truth_tracking: true
   icp_use_reciprocal_correspondences: true
   icp_max_correspondence_distance: 100
   icp_use_symmetric_objective: false

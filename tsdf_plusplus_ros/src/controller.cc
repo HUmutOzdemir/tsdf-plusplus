@@ -160,13 +160,28 @@ void Controller::getConfigFromRosParam(const ros::NodeHandle &nh_private) {
 
 void Controller::movementInformationCallback(
     const tsdf_plusplus_msgs::MovementInfo::Ptr &movement_info) {
+
+  // Extract the Object IDs inside the map
+  std::map<ObjectID, ObjectVolume *> *object_volumes =
+      map_->getObjectVolumesPtr();
+  std::set<ObjectID> object_ids_;
+
+  for (const auto &pair : *object_volumes) {
+    object_ids_.insert(pair.first);
+  }
+
   // Integrate the Movements if previous movent exists
   for (int i = 0; i < movement_info->object_ids.size(); i++) {
     ObjectID object_id_ = movement_info->object_ids[i];
+
+    // If Object is DEtected by the Map
+    if (object_ids_.find(object_id_) == object_ids_.end()) {
+      continue;
+    }
+
     // Convert Movement to Eigen Matrix
     Eigen::Matrix4f movement =
         Eigen::Map<Eigen::Matrix4f>(movement_info->movements[i].data.data());
-
     if (object_movements_.find(object_id_) == object_movements_.end()) {
       object_movements_[object_id_] = movement;
     } else {
@@ -179,9 +194,11 @@ void Controller::segmentPointcloudCallback(
     const sensor_msgs::PointCloud2::Ptr &segment_pcl_msg) {
   bool frame_complete = segment_pcl_msg->header.stamp - last_segment_msg_time_ >
                         min_time_between_msgs_;
+  processSegmentPointcloud(segment_pcl_msg);
+
   if (frame_complete && current_frame_segments_.size() > 0u) {
-    LOG(ERROR) << "Integrating frame " << ++frame_number_ << " with timestamp "
-               << std::fixed << last_segment_msg_time_.toSec();
+    LOG(INFO) << "Integrating frame " << ++frame_number_ << " with timestamp "
+              << std::fixed << last_segment_msg_time_.toSec();
     integrateFrame();
 
     if (write_frames_to_file_) {
@@ -192,8 +209,6 @@ void Controller::segmentPointcloudCallback(
     clearFrame();
   }
   last_segment_msg_time_ = segment_pcl_msg->header.stamp;
-
-  processSegmentPointcloud(segment_pcl_msg);
 }
 
 void Controller::processSegmentPointcloud(
@@ -319,11 +334,11 @@ void Controller::integrateFrame() {
     integrate_timer.Stop();
 
     if (using_ground_truth_segmentation_) {
-      LOG(ERROR) << "Integrated " << current_frame_segments_.size()
-                 << " segments in " << tic_toc.toc() << " ms. ";
+      LOG(INFO) << "Integrated " << current_frame_segments_.size()
+                << " segments in " << tic_toc.toc() << " ms. ";
     } else {
-      LOG(ERROR) << "Integrated " << object_merged_segments_.size()
-                 << " segments in " << tic_toc.toc() << " ms. ";
+      LOG(INFO) << "Integrated " << object_merged_segments_.size()
+                << " segments in " << tic_toc.toc() << " ms. ";
     }
 
     // Update the camera parameters of the visualizer to
@@ -331,8 +346,8 @@ void Controller::integrateFrame() {
     *camera_extrinsics_ = T_G_C_.getTransformationMatrix();
   }
 
-  LOG(ERROR) << "Timings: " << std::endl
-             << voxblox::timing::Timing::Print() << std::endl;
+  LOG(INFO) << "Timings: " << std::endl
+            << voxblox::timing::Timing::Print() << std::endl;
 }
 
 void Controller::integrateSemanticClasses() {
@@ -365,15 +380,16 @@ void Controller::trackObjects() {
         if (ground_truth_tracking_) {
           if (object_movements_.find(segment->object_id_) ==
               object_movements_.end()) {
-            LOG(ERROR) << "Skipping pose tracking because object is static.";
+            LOG(INFO) << "Skipping pose tracking because object is static. ID: "
+                      << segment->object_id_;
             continue;
           }
         } else {
-          if (segment->object_id_ % 2 == 1 ||
+          if (segment->object_id_ % 2 == 0 ||
               segment->points_C_.size() > 100000) {
-            LOG(ERROR) << "Skipping pose tracking of object segment as its "
-                          "size is too large or too low. (number of points: "
-                       << segment->points_C_.size() << ").";
+            LOG(INFO) << "Skipping pose tracking of object segment as its "
+                         "size is too large or too low. (number of points: "
+                      << segment->points_C_.size() << ").";
             continue;
           }
         }
@@ -386,9 +402,9 @@ void Controller::trackObjects() {
         }
         // TODO(margaritaG): parametrize this nicely.
         if (segment->points_C_.size() > 100000) {
-          LOG(ERROR) << "Skipping pose tracking of object segment as its "
-                        "size is too large. (number of points: "
-                     << segment->points_C_.size() << ").";
+          LOG(INFO) << "Skipping pose tracking of object segment as its "
+                       "size is too large. (number of points: "
+                    << segment->points_C_.size() << ").";
           continue;
         }
       }
@@ -442,11 +458,9 @@ void Controller::trackObjects() {
                                    Eigen::Matrix4f::Identity(), &G_T_S_O);
 
         if (!success) {
-          LOG(ERROR) << "ICP has not converged, assuming object did not "
-                        "move.";
+          LOG(INFO) << "ICP has not converged, assuming object did not "
+                       "move.";
           G_T_S_O = Eigen::Matrix4f::Identity();
-        } else {
-          LOG(ERROR) << "Calculated Transformation Matrix by ICP" << G_T_S_O;
         }
 
         G_T_O_S = G_T_S_O.inverse();
@@ -542,10 +556,9 @@ bool Controller::generateMeshCallback(std_srvs::Empty::Request & /*request*/,
     if (!mesh_filename_.empty()) {
       const bool success = outputMeshLayerAsPly(mesh_filename_, *mesh_layer_);
       if (success) {
-        LOG(ERROR) << "Output file as PLY: " << mesh_filename_.c_str();
+        LOG(INFO) << "Output file as PLY: " << mesh_filename_.c_str();
       } else {
-        LOG(ERROR) << "Failed to output mesh as PLY: "
-                   << mesh_filename_.c_str();
+        LOG(INFO) << "Failed to output mesh as PLY: " << mesh_filename_.c_str();
       }
     }
   }
@@ -575,9 +588,9 @@ bool Controller::saveObjectsCallback(std_srvs::Empty::Request & /*request*/,
         voxblox::io::PlyOutputTypes::kSdfIsosurface);
 
     if (success) {
-      LOG(ERROR) << "Output object file as PLY: " << mesh_filename.c_str();
+      LOG(INFO) << "Output object file as PLY: " << mesh_filename.c_str();
     } else {
-      LOG(ERROR) << "Failed to output mesh as PLY:" << mesh_filename.c_str();
+      LOG(INFO) << "Failed to output mesh as PLY:" << mesh_filename.c_str();
     }
   }
 }

@@ -5,17 +5,16 @@
 
 #include <pcl/common/centroid.h>
 
-Segment::Segment(const pcl::PointCloud<InputPointType>& pointcloud_pcl,
-                 const voxblox::Transformation& T_G_C)
+Segment::Segment(const pcl::PointCloud<InputPointType> &pointcloud_pcl,
+                 const voxblox::Transformation &T_G_C)
     : T_G_C_(T_G_C), semantic_class_(pointcloud_pcl.points[0].semantic_class) {
   pointcloud_ = pointcloud_pcl;
   convertPointcloud();
 }
 
-Segment::Segment(const pcl::PointCloud<GTInputPointType>& pointcloud_pcl,
-                 const voxblox::Transformation& T_G_C)
-    : T_G_C_(T_G_C),
-      object_id_(pointcloud_pcl.points[0].label + 1),
+Segment::Segment(const pcl::PointCloud<GTInputPointType> &pointcloud_pcl,
+                 const voxblox::Transformation &T_G_C)
+    : T_G_C_(T_G_C), object_id_(pointcloud_pcl.points[0].label),
       semantic_class_(BackgroundClass) {
   pcl::copyPointCloud(pointcloud_pcl, pointcloud_);
   convertPointcloud();
