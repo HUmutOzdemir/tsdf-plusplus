@@ -596,41 +596,35 @@ bool Controller::saveObjectsCallback(std_srvs::Empty::Request & /*request*/,
       LOG(INFO) << "Failed to output mesh as PLY:" << mesh_filename.c_str();
     }
   }
+
+  return true;
 }
 
 bool Controller::getRewardCallback(std_srvs::Empty::Request & /*request*/,
                                    std_srvs::Empty::Response &
                                    /*response*/) {
-  // tsdf_plusplus_msgs::Reward reward;
-  //  reward.number_of_objects = 0;
-  //  reward.number_of_occupied_voxels = 0;
-  LOG(ERROR) << 1;
+  tsdf_plusplus_msgs::Reward reward;
+  reward.number_of_objects = 0;
+  reward.number_of_occupied_voxels = 0;
 
-  // std::map<ObjectID, ObjectVolume *> *object_volumes =
-  //     map_->getObjectVolumesPtr();
-  LOG(ERROR) << 2;
-  /*
-    for (const auto &pair : *object_volumes) {
-      // Count Number of Objects
-      // reward.number_of_objects++;
-      LOG(ERROR) << 3;
-      // Count Number of Voxels
-      // Layer<TsdfVoxel> *object_layer = pair.second->getTsdfLayerPtr();
-      LOG(ERROR) << 4;
-      // reward.number_of_occupied_voxels +=
-      //     object_layer->getNumberOfAllocatedBlocks();
-      LOG(ERROR) << 5;
+  std::map<ObjectID, ObjectVolume *> *object_volumes =
+      map_->getObjectVolumesPtr();
+  for (const auto &pair : *object_volumes) {
+    // Count Number of Objects
+    reward.number_of_objects++;
+    // Count Number of Voxels
+    Layer<TsdfVoxel> *object_layer = pair.second->getTsdfLayerPtr();
+    reward.number_of_occupied_voxels +=
+        object_layer->getNumberOfAllocatedBlocks();
 
-      // Store Object Level Stats
-      // reward.object_ids.push_back(pair.first);
-      // reward.object_number_of_voxels.push_back(
-      //    object_layer->getNumberOfAllocatedBlocks());
-      LOG(ERROR) << 6;
-    }
-    */
+    // Store Object Level Stats
+    reward.object_ids.push_back(pair.first);
+    reward.object_number_of_voxels.push_back(
+        object_layer->getNumberOfAllocatedBlocks());
+  }
 
-  // reward_pub_.publish(reward);
-  LOG(ERROR) << 7;
+  reward_pub_.publish(reward);
+  return true;
 }
 
 bool Controller::removeObjectsCallback(std_srvs::Empty::Request & /*request*/,
@@ -649,4 +643,6 @@ bool Controller::removeObjectsCallback(std_srvs::Empty::Request & /*request*/,
     // Project the object map to 2D segmentation images.
     visualizer_->triggerScreenshot(frame_number_);
   }
+
+  return true;
 }
