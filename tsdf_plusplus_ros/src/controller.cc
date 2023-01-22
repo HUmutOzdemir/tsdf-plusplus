@@ -110,12 +110,12 @@ Controller::Controller(const ros::NodeHandle &nh,
   remove_objects_srv_ = nh_private_.advertiseService(
       "remove_objects", &Controller::removeObjectsCallback, this);
   get_reward_srv_ = nh_private_.advertiseService(
-      "get_reward", &Controller::removeObjectsCallback, this);
+      "get_reward", &Controller::getRewardCallback, this);
 
   // Advertise publishers.
   mesh_pub_ = nh_private_.advertise<voxblox_msgs::Mesh>("mesh", 1, true);
   reward_pub_ =
-      nh_private_.advertise<tsdf_plusplus_msg::Reward>("reward", 1, true);
+      nh_private_.advertise<tsdf_plusplus_msgs::Reward>("reward", 1, true);
 }
 
 Controller::~Controller() { vizualizer_thread_.join(); }
@@ -601,29 +601,36 @@ bool Controller::saveObjectsCallback(std_srvs::Empty::Request & /*request*/,
 bool Controller::getRewardCallback(std_srvs::Empty::Request & /*request*/,
                                    std_srvs::Empty::Response &
                                    /*response*/) {
-  tsdf_plusplus_msgs::Reward reward;
-  reward.number_of_objects = 0;
-  reward.number_of_occupied_voxels = 0;
+  // tsdf_plusplus_msgs::Reward reward;
+  //  reward.number_of_objects = 0;
+  //  reward.number_of_occupied_voxels = 0;
+  LOG(ERROR) << 1;
 
-  std::map<ObjectID, ObjectVolume *> *object_volumes =
-      map_->getObjectVolumesPtr();
-  for (const auto &pair : *object_volumes) {
-    // Count Number of Objects
-    reward.number_of_objects++;
-    // Count Number of Voxels
-    Layer<TsdfVoxel> *object_layer = pair.second->getTsdfLayerPtr();
-    BlockIndexList all_object_blocks;
-    object_layer->getAllAllocatedBlocks(&all_object_blocks);
-    reward.number_of_occupied_voxels +=
-        object_layer->getNumberOfAllocatedBlocks();
+  // std::map<ObjectID, ObjectVolume *> *object_volumes =
+  //     map_->getObjectVolumesPtr();
+  LOG(ERROR) << 2;
+  /*
+    for (const auto &pair : *object_volumes) {
+      // Count Number of Objects
+      // reward.number_of_objects++;
+      LOG(ERROR) << 3;
+      // Count Number of Voxels
+      // Layer<TsdfVoxel> *object_layer = pair.second->getTsdfLayerPtr();
+      LOG(ERROR) << 4;
+      // reward.number_of_occupied_voxels +=
+      //     object_layer->getNumberOfAllocatedBlocks();
+      LOG(ERROR) << 5;
 
-    // Store Object Level Stats
-    reward.object_ids.push_back(pair.first);
-    reward.object_number_of_voxels.push_back(
-        object_layer->getNumberOfAllocatedBlocks());
-  }
+      // Store Object Level Stats
+      // reward.object_ids.push_back(pair.first);
+      // reward.object_number_of_voxels.push_back(
+      //    object_layer->getNumberOfAllocatedBlocks());
+      LOG(ERROR) << 6;
+    }
+    */
 
-  reward_pub_.publish(reward);
+  // reward_pub_.publish(reward);
+  LOG(ERROR) << 7;
 }
 
 bool Controller::removeObjectsCallback(std_srvs::Empty::Request & /*request*/,
