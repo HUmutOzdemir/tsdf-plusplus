@@ -110,6 +110,7 @@ protected:
 
   // List of segments observed in the current frame.
   std::vector<Segment *> current_frame_segments_;
+  std::vector<ros::Time> current_frame_segment_times_;
 
   // Pairwise overlap (number of points) between segments
   // in the current frame and objects in the map.
@@ -125,7 +126,8 @@ protected:
   std::shared_ptr<ICP> icp_;
 
   // Object Movement Storage
-  std::map<ObjectID, Eigen::Matrix4f> object_movements_;
+  std::map<ObjectID, std::vector<std::pair<ros::Time, Eigen::Matrix4f>>>
+      object_movements_;
 
   // Maps and integrators.
   std::shared_ptr<Map> map_;

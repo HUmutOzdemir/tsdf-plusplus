@@ -172,12 +172,15 @@ void Controller::movementInformationCallback(
   for (const auto &pair : *object_volumes) {
     object_ids_.insert(pair.first);
   }
+  for (Segment *segment : current_frame_segments_) {
+    object_ids_.insert(segment->object_id_);
+  }
 
   // Integrate the Movements if previous movent exists
   for (int i = 0; i < movement_info->object_ids.size(); i++) {
     ObjectID object_id_ = movement_info->object_ids[i];
 
-    // If Object is DEtected by the Map
+    // If Object is Detected by the Map
     if (object_ids_.find(object_id_) == object_ids_.end()) {
       continue;
     }
@@ -185,10 +188,12 @@ void Controller::movementInformationCallback(
     // Convert Movement to Eigen Matrix
     Eigen::Matrix4f movement =
         Eigen::Map<Eigen::Matrix4f>(movement_info->movements[i].data.data());
+
     if (object_movements_.find(object_id_) == object_movements_.end()) {
-      object_movements_[object_id_] = movement;
+      object_movements_[object_id_] = {{movement_info->header.stamp, movement}};
     } else {
-      object_movements_[object_id_] = object_movements_[object_id_] * movement;
+      object_movements_[object_id_].push_back(
+          {movement_info->header.stamp, movement});
     }
   }
 }
@@ -245,6 +250,7 @@ void Controller::processSegmentPointcloud(
     // Add the segment to the collection of
     // segments observed in the current frame.
     current_frame_segments_.push_back(segment);
+    current_frame_segment_times_.push_back(segment_pcl_msg->header.stamp);
 
     if (!using_ground_truth_segmentation_) {
       integrator_->computeObjectOverlap(segment, &object_segment_overlap_);
@@ -369,7 +375,10 @@ void Controller::integrateSemanticClasses() {
 
 void Controller::trackObjects() {
   // Track and update the pose of objects in the map.
-  for (Segment *segment : current_frame_segments_) {
+  for (int i = 0; i < current_frame_segments_.size(); i++) {
+    Segment *segment = current_frame_segments_[i];
+    ros::Time segment_time = current_frame_segment_times_[i];
+
     ObjectVolume *object_volume =
         map_->getObjectVolumePtrById(segment->object_id_);
 
@@ -445,8 +454,21 @@ void Controller::trackObjects() {
       Transformation T_O_S;
 
       if (ground_truth_tracking_) {
-        G_T_O_S = object_movements_[segment->object_id_];
-        object_movements_.erase(segment->object_id_);
+        while (!object_movements_[segment->object_id_].empty()) {
+          // Take the first element
+          auto movement = object_movements_[segment->object_id_][0];
+          // Remove the first element
+          object_movements_[segment->object_id_].erase(
+              object_movements_[segment->object_id_].begin());
+          // Check the time stamp of the segment and movement
+          if (movement.first == segment_time) {
+            G_T_O_S = movement.second;
+            break;
+          }
+        }
+        if (object_movements_[segment->object_id_].empty()) {
+          object_movements_.erase(segment->object_id_);
+        }
       } else {
         pcl::PointCloud<PointTypeNormal>::Ptr G_segment_pcl_cloud(
             new pcl::PointCloud<PointTypeNormal>);
@@ -489,6 +511,7 @@ void Controller::clearFrame() {
   }
 
   current_frame_segments_.clear();
+  current_frame_segment_times_.clear();
   object_segment_overlap_.clear();
   object_merged_segments_.clear();
 }
