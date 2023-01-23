@@ -6,7 +6,6 @@
 
 #include <message_filters/subscriber.h>
 #include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
 #include <std_srvs/Empty.h>
 #include <tf/message_filter.h>
 #include <tsdf_plusplus/alignment/icp.h>
@@ -15,6 +14,7 @@
 #include <tsdf_plusplus/mesh/mesh_integrator.h>
 #include <tsdf_plusplus/visualizer/visualizer.h>
 #include <tsdf_plusplus_msgs/MovementInfo.h>
+#include <tsdf_plusplus_msgs/MovementPointCloud.h>
 #include <tsdf_plusplus_msgs/Reward.h>
 #include <voxblox/core/common.h>
 #include <voxblox/utils/timing.h>
@@ -37,7 +37,7 @@ public:
 
 protected:
   void processSegmentPointcloud(
-      const sensor_msgs::PointCloud2::Ptr &segment_pcl_msg);
+      const tsdf_plusplus_msgs::MovementPointCloud::Ptr &segment_pcl_msg);
 
   bool lookupTransformTF(const std::string &from_frame,
                          const std::string &to_frame,
@@ -58,10 +58,7 @@ protected:
   void updateMeshEvent(const ros::TimerEvent &event);
 
   void segmentPointcloudCallback(
-      const sensor_msgs::PointCloud2::Ptr &segment_pcl_msg);
-
-  void movementInformationCallback(
-      const tsdf_plusplus_msgs::MovementInfo::Ptr &movement_info);
+      const tsdf_plusplus_msgs::MovementPointCloud::Ptr &segment_pcl_msg);
 
   bool generateMeshCallback(std_srvs::Empty::Request & /*request*/,
                             std_srvs::Empty::Response & /*response*/);
@@ -82,7 +79,6 @@ protected:
 
   // Data subscribers.
   ros::Subscriber pointcloud_sub_;
-  ros::Subscriber movement_sub_;
 
   // Will throttle to this message rate.
   ros::Duration min_time_between_msgs_;
@@ -110,7 +106,7 @@ protected:
 
   // List of segments observed in the current frame.
   std::vector<Segment *> current_frame_segments_;
-  std::vector<ros::Time> current_frame_segment_times_;
+  std::vector<std::pair<bool, Eigen::Matrix4f>> current_frame_movements_;
 
   // Pairwise overlap (number of points) between segments
   // in the current frame and objects in the map.
@@ -124,10 +120,6 @@ protected:
   bool object_tracking_enabled_;
   bool ground_truth_tracking_;
   std::shared_ptr<ICP> icp_;
-
-  // Object Movement Storage
-  std::map<ObjectID, std::vector<std::pair<ros::Time, Eigen::Matrix4f>>>
-      object_movements_;
 
   // Maps and integrators.
   std::shared_ptr<Map> map_;

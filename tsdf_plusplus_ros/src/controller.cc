@@ -59,10 +59,6 @@ Controller::Controller(const ros::NodeHandle &nh,
       nh_.subscribe(segment_pointcloud_topic, pointcloud_queue_size,
                     &Controller::segmentPointcloudCallback, this);
 
-  movement_sub_ =
-      nh_.subscribe("/camera/object_movements", pointcloud_queue_size,
-                    &Controller::movementInformationCallback, this);
-
   // Initialize map and integrator.
   map_.reset(new Map(map_config));
   integrator_.reset(new Integrator(integrator_config, map_));
@@ -161,45 +157,8 @@ void Controller::getConfigFromRosParam(const ros::NodeHandle &nh_private) {
   }
 }
 
-void Controller::movementInformationCallback(
-    const tsdf_plusplus_msgs::MovementInfo::Ptr &movement_info) {
-
-  // Extract the Object IDs inside the map
-  std::map<ObjectID, ObjectVolume *> *object_volumes =
-      map_->getObjectVolumesPtr();
-  std::set<ObjectID> object_ids_;
-
-  for (const auto &pair : *object_volumes) {
-    object_ids_.insert(pair.first);
-  }
-  for (Segment *segment : current_frame_segments_) {
-    object_ids_.insert(segment->object_id_);
-  }
-
-  // Integrate the Movements if previous movent exists
-  for (int i = 0; i < movement_info->object_ids.size(); i++) {
-    ObjectID object_id_ = movement_info->object_ids[i];
-
-    // If Object is Detected by the Map
-    if (object_ids_.find(object_id_) == object_ids_.end()) {
-      continue;
-    }
-
-    // Convert Movement to Eigen Matrix
-    Eigen::Matrix4f movement =
-        Eigen::Map<Eigen::Matrix4f>(movement_info->movements[i].data.data());
-
-    if (object_movements_.find(object_id_) == object_movements_.end()) {
-      object_movements_[object_id_] = {{movement_info->header.stamp, movement}};
-    } else {
-      object_movements_[object_id_].push_back(
-          {movement_info->header.stamp, movement});
-    }
-  }
-}
-
 void Controller::segmentPointcloudCallback(
-    const sensor_msgs::PointCloud2::Ptr &segment_pcl_msg) {
+    const tsdf_plusplus_msgs::MovementPointCloud::Ptr &segment_pcl_msg) {
   bool frame_complete = segment_pcl_msg->header.stamp - last_segment_msg_time_ >
                         min_time_between_msgs_;
   processSegmentPointcloud(segment_pcl_msg);
@@ -220,7 +179,7 @@ void Controller::segmentPointcloudCallback(
 }
 
 void Controller::processSegmentPointcloud(
-    const sensor_msgs::PointCloud2::Ptr &segment_pcl_msg) {
+    const tsdf_plusplus_msgs::MovementPointCloud::Ptr &segment_pcl_msg) {
   // Look up transform from camera frame to world frame.
   if (lookupTransformTF(segment_pcl_msg->header.frame_id, world_frame_,
                         segment_pcl_msg->header.stamp, &T_G_C_)) {
@@ -228,21 +187,22 @@ void Controller::processSegmentPointcloud(
     voxblox::timing::Timer preprocess_timer("preprocess/segment");
 
     // Horrible hack fix to fix color parsing colors in PCL.
-    for (size_t d = 0u; d < segment_pcl_msg->fields.size(); ++d) {
-      if (segment_pcl_msg->fields[d].name == std::string("rgb")) {
-        segment_pcl_msg->fields[d].datatype = sensor_msgs::PointField::FLOAT32;
+    for (size_t d = 0u; d < segment_pcl_msg->pointcloud.fields.size(); ++d) {
+      if (segment_pcl_msg->pointcloud.fields[d].name == std::string("rgb")) {
+        segment_pcl_msg->pointcloud.fields[d].datatype =
+            sensor_msgs::PointField::FLOAT32;
       }
     }
 
     Segment *segment;
     if (using_ground_truth_segmentation_) {
       pcl::PointCloud<GTInputPointType> pointcloud_pcl;
-      pcl::moveFromROSMsg(*segment_pcl_msg, pointcloud_pcl);
+      pcl::moveFromROSMsg(segment_pcl_msg->pointcloud, pointcloud_pcl);
 
       segment = new Segment(pointcloud_pcl, T_G_C_);
     } else {
       pcl::PointCloud<InputPointType> pointcloud_pcl;
-      pcl::moveFromROSMsg(*segment_pcl_msg, pointcloud_pcl);
+      pcl::moveFromROSMsg(segment_pcl_msg->pointcloud, pointcloud_pcl);
 
       segment = new Segment(pointcloud_pcl, T_G_C_);
     }
@@ -250,7 +210,13 @@ void Controller::processSegmentPointcloud(
     // Add the segment to the collection of
     // segments observed in the current frame.
     current_frame_segments_.push_back(segment);
-    current_frame_segment_times_.push_back(segment_pcl_msg->header.stamp);
+
+    if (ground_truth_tracking_) {
+      // Convert Movement to Eigen Matrix
+      Eigen::Matrix4f movement =
+          Eigen::Map<Eigen::Matrix4f>(segment_pcl_msg->movement.data.data());
+      current_frame_movements_.push_back({segment_pcl_msg->is_moved, movement});
+    }
 
     if (!using_ground_truth_segmentation_) {
       integrator_->computeObjectOverlap(segment, &object_segment_overlap_);
@@ -377,7 +343,7 @@ void Controller::trackObjects() {
   // Track and update the pose of objects in the map.
   for (int i = 0; i < current_frame_segments_.size(); i++) {
     Segment *segment = current_frame_segments_[i];
-    ros::Time segment_time = current_frame_segment_times_[i];
+    auto movement_info = current_frame_movements_[i];
 
     ObjectVolume *object_volume =
         map_->getObjectVolumePtrById(segment->object_id_);
@@ -390,8 +356,7 @@ void Controller::trackObjects() {
         // to differentiate between small moving foreground objects and
         // large static background structures.
         if (ground_truth_tracking_) {
-          if (object_movements_.find(segment->object_id_) ==
-              object_movements_.end()) {
+          if (!movement_info.first) {
             LOG(INFO) << "Skipping pose tracking because object is static. ID: "
                       << segment->object_id_;
             continue;
@@ -427,26 +392,7 @@ void Controller::trackObjects() {
       Transformation T_O_S;
 
       if (ground_truth_tracking_) {
-        bool is_moved = false;
-        while (!object_movements_[segment->object_id_].empty()) {
-          // Take the first element
-          auto movement = object_movements_[segment->object_id_][0];
-          // Remove the first element
-          object_movements_[segment->object_id_].erase(
-              object_movements_[segment->object_id_].begin());
-          // Check the time stamp of the segment and movement
-          if (movement.first == segment_time) {
-            G_T_O_S = movement.second;
-            is_moved = true;
-            break;
-          }
-        }
-        if (object_movements_[segment->object_id_].empty()) {
-          object_movements_.erase(segment->object_id_);
-        }
-        if (!is_moved) {
-          continue;
-        }
+        G_T_O_S = movement_info.second;
       } else {
         timing::Timer icp_preprocess_timer("icp/preprocess");
 
@@ -516,7 +462,7 @@ void Controller::clearFrame() {
   }
 
   current_frame_segments_.clear();
-  current_frame_segment_times_.clear();
+  current_frame_movements_.clear();
   object_segment_overlap_.clear();
   object_merged_segments_.clear();
 }
