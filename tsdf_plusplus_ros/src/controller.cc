@@ -159,11 +159,10 @@ void Controller::getConfigFromRosParam(const ros::NodeHandle &nh_private) {
 
 void Controller::segmentPointcloudCallback(
     const tsdf_plusplus_msgs::MovementPointCloud::Ptr &segment_pcl_msg) {
-  bool frame_complete = segment_pcl_msg->header.stamp - last_segment_msg_time_ >
-                        min_time_between_msgs_;
+
   processSegmentPointcloud(segment_pcl_msg);
 
-  if (frame_complete && current_frame_segments_.size() > 0u) {
+  if (current_frame_segments_.size() > 0u) {
     LOG(INFO) << "Integrating frame " << ++frame_number_ << " with timestamp "
               << std::fixed << last_segment_msg_time_.toSec();
     integrateFrame();
@@ -175,7 +174,6 @@ void Controller::segmentPointcloudCallback(
 
     clearFrame();
   }
-  last_segment_msg_time_ = segment_pcl_msg->header.stamp;
 }
 
 void Controller::processSegmentPointcloud(
@@ -546,28 +544,32 @@ bool Controller::generateMeshCallback(std_srvs::Empty::Request & /*request*/,
 bool Controller::saveObjectsCallback(std_srvs::Empty::Request & /*request*/,
                                      std_srvs::Empty::Response &
                                      /*response*/) {
-  std::map<ObjectID, ObjectVolume *> *object_volumes =
-      map_->getObjectVolumesPtr();
+  {
+    std::lock_guard<std::mutex> map_lock(map_mutex_);
 
-  for (const auto &pair : *object_volumes) {
-    if (!using_ground_truth_segmentation_ &&
-        pair.second->getSemanticClass() == BackgroundClass &&
-        pair.first != 2u) {
-      continue;
-    }
-    CHECK_EQ(makePath("tpp_objects", 0777), 0);
+    std::map<ObjectID, ObjectVolume *> *object_volumes =
+        map_->getObjectVolumesPtr();
 
-    std::string mesh_filename =
-        "tpp_objects/tpp_object_" + std::to_string(pair.first) + ".ply";
+    for (const auto &pair : *object_volumes) {
+      if (!using_ground_truth_segmentation_ &&
+          pair.second->getSemanticClass() == BackgroundClass &&
+          pair.first != 2u) {
+        continue;
+      }
+      CHECK_EQ(makePath("tpp_objects", 0777), 0);
 
-    bool success = voxblox::io::outputLayerAsPly(
-        *pair.second->getTsdfLayerPtr(), mesh_filename,
-        voxblox::io::PlyOutputTypes::kSdfIsosurface);
+      std::string mesh_filename =
+          "tpp_objects/tpp_object_" + std::to_string(pair.first) + ".ply";
 
-    if (success) {
-      LOG(INFO) << "Output object file as PLY: " << mesh_filename.c_str();
-    } else {
-      LOG(INFO) << "Failed to output mesh as PLY:" << mesh_filename.c_str();
+      bool success = voxblox::io::outputLayerAsPly(
+          *pair.second->getTsdfLayerPtr(), mesh_filename,
+          voxblox::io::PlyOutputTypes::kSdfIsosurface);
+
+      if (success) {
+        LOG(INFO) << "Output object file as PLY: " << mesh_filename.c_str();
+      } else {
+        LOG(INFO) << "Failed to output mesh as PLY:" << mesh_filename.c_str();
+      }
     }
   }
 
@@ -577,46 +579,55 @@ bool Controller::saveObjectsCallback(std_srvs::Empty::Request & /*request*/,
 bool Controller::getRewardCallback(std_srvs::Empty::Request & /*request*/,
                                    std_srvs::Empty::Response &
                                    /*response*/) {
-  tsdf_plusplus_msgs::Reward reward;
-  reward.number_of_objects = 0;
-  reward.number_of_occupied_voxels = 0;
 
-  std::map<ObjectID, ObjectVolume *> *object_volumes =
-      map_->getObjectVolumesPtr();
-  for (const auto &pair : *object_volumes) {
-    // Count Number of Objects
-    reward.number_of_objects++;
-    // Count Number of Voxels
-    Layer<TsdfVoxel> *object_layer = pair.second->getTsdfLayerPtr();
-    reward.number_of_occupied_voxels +=
-        object_layer->getNumberOfAllocatedBlocks();
+  {
+    std::lock_guard<std::mutex> map_lock(map_mutex_);
 
-    // Store Object Level Stats
-    reward.object_ids.push_back(pair.first);
-    reward.object_number_of_voxels.push_back(
-        object_layer->getNumberOfAllocatedBlocks());
+    tsdf_plusplus_msgs::Reward reward;
+    reward.number_of_objects = 0;
+    reward.number_of_occupied_voxels = 0;
+
+    std::map<ObjectID, ObjectVolume *> *object_volumes =
+        map_->getObjectVolumesPtr();
+    for (const auto &pair : *object_volumes) {
+      // Count Number of Objects
+      reward.number_of_objects++;
+      // Count Number of Voxels
+      Layer<TsdfVoxel> *object_layer = pair.second->getTsdfLayerPtr();
+      reward.number_of_occupied_voxels +=
+          object_layer->getNumberOfAllocatedBlocks();
+
+      // Store Object Level Stats
+      reward.object_ids.push_back(pair.first);
+      reward.object_number_of_voxels.push_back(
+          object_layer->getNumberOfAllocatedBlocks());
+    }
+
+    reward_pub_.publish(reward);
   }
 
-  reward_pub_.publish(reward);
   return true;
 }
 
 bool Controller::removeObjectsCallback(std_srvs::Empty::Request & /*request*/,
                                        std_srvs::Empty::Response &
                                        /*response*/) {
-  std::map<ObjectID, ObjectVolume *> *object_volumes =
-      map_->getObjectVolumesPtr();
+  {
+    std::lock_guard<std::mutex> map_lock(map_mutex_);
 
-  // Remove all Objects
-  for (const auto &pair : *object_volumes) {
-    map_->removeObject(pair.first);
+    std::map<ObjectID, ObjectVolume *> *object_volumes =
+        map_->getObjectVolumesPtr();
+
+    // Remove all Objects
+    for (const auto &pair : *object_volumes) {
+      map_->removeObject(pair.first);
+    }
+    *mesh_layer_updated_ = true;
+
+    if (write_frames_to_file_) {
+      // Project the object map to 2D segmentation images.
+      visualizer_->triggerScreenshot(frame_number_);
+    }
   }
-  *mesh_layer_updated_ = true;
-
-  if (write_frames_to_file_) {
-    // Project the object map to 2D segmentation images.
-    visualizer_->triggerScreenshot(frame_number_);
-  }
-
   return true;
 }
