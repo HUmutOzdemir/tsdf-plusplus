@@ -1,0 +1,2 @@
+std_msgs/Header header
+tsdf_plusplus_msgs/MovementPointCloud[] segments

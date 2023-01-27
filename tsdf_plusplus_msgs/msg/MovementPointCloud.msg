@@ -1,4 +1,4 @@
-std_msgs/Header header
 sensor_msgs/PointCloud2 pointcloud
 tsdf_plusplus_msgs/TransformationMatrix movement
 bool is_moved
+uint16 object_id
