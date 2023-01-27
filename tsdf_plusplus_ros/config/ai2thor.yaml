@@ -2,9 +2,9 @@ sensor_frame: "camera"
 rgb_image_sub_topic: /camera/rgb/image_raw
 depth_image_sub_topic: /camera/depth/image_raw
 
-camera_intrinsics: [112, 0, 112, 0, 112, 112, 0, 0, 1]
+camera_intrinsics: [80, 0, 80, 0, 80, 80, 0, 0, 1]
 
-voxel_size: 0.01
+voxel_size: 0.02
 truncation_distance_factor: 3.0
 max_ray_length_m: 5.0
 max_weight: 10000
@@ -28,7 +28,7 @@ meshing:
 
 visualizer:
   enable: false
-  camera_intrinsics: [112, 0, 112, 0, 112, 112, 0, 0, 1]
+  camera_intrinsics: [80, 0, 80, 0, 80, 80, 0, 0, 1]
 
 debug:
   verbose_log: false
