@@ -44,7 +44,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
 // Point types.
 typedef pcl::PointXYZRGB PointType;
 typedef pcl::PointXYZRGBNormal PointTypeNormal;
-typedef pcl::PointXYZRGBL GTInputPointType;
+typedef pcl::PointXYZRGB GTInputPointType;
 typedef PointXYZRGBCNormal InputPointType;
 
-#endif  // TSDF_PLUSPLUS_CORE_COMMON_H_
+#endif // TSDF_PLUSPLUS_CORE_COMMON_H_

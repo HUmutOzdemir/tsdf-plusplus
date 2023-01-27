@@ -13,9 +13,8 @@ Segment::Segment(const pcl::PointCloud<InputPointType> &pointcloud_pcl,
 }
 
 Segment::Segment(const pcl::PointCloud<GTInputPointType> &pointcloud_pcl,
-                 const voxblox::Transformation &T_G_C)
-    : T_G_C_(T_G_C), object_id_(pointcloud_pcl.points[0].label),
-      semantic_class_(BackgroundClass) {
+                 const voxblox::Transformation &T_G_C, const ObjectID object_id)
+    : T_G_C_(T_G_C), object_id_(object_id), semantic_class_(BackgroundClass) {
   pcl::copyPointCloud(pointcloud_pcl, pointcloud_);
   convertPointcloud();
 }

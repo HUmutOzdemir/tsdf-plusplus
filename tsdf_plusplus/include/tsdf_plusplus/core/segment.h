@@ -11,14 +11,14 @@
 #include "tsdf_plusplus/core/common.h"
 
 class Segment {
- public:
+public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  Segment(const pcl::PointCloud<InputPointType>& pointcloud_pcl,
-          const voxblox::Transformation& T_G_C);
+  Segment(const pcl::PointCloud<InputPointType> &pointcloud_pcl,
+          const voxblox::Transformation &T_G_C);
 
-  Segment(const pcl::PointCloud<GTInputPointType>& pointcloud_pcl,
-          const voxblox::Transformation& T_G_C);
+  Segment(const pcl::PointCloud<GTInputPointType> &pointcloud_pcl,
+          const voxblox::Transformation &T_G_C, const ObjectID object_id);
 
   // Populate a voxblox::Pointcloud from the pcl::PointCloud data.
   void convertPointcloud();
@@ -33,4 +33,4 @@ class Segment {
   pcl::PointCloud<InputPointType> pointcloud_;
 };
 
-#endif  // TSDF_PLUSPLUS_CORE_SEGMENT_H_
+#endif // TSDF_PLUSPLUS_CORE_SEGMENT_H_

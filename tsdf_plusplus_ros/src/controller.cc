@@ -105,8 +105,6 @@ Controller::Controller(const ros::NodeHandle &nh,
       "save_objects", &Controller::saveObjectsCallback, this);
   remove_objects_srv_ = nh_private_.advertiseService(
       "remove_objects", &Controller::removeObjectsCallback, this);
-  get_reward_srv_ = nh_private_.advertiseService(
-      "get_reward", &Controller::getRewardCallback, this);
 
   // Advertise publishers.
   mesh_pub_ = nh_private_.advertise<voxblox_msgs::Mesh>("mesh", 1, true);
@@ -158,7 +156,7 @@ void Controller::getConfigFromRosParam(const ros::NodeHandle &nh_private) {
 }
 
 void Controller::segmentPointcloudCallback(
-    const tsdf_plusplus_msgs::MovementPointCloud::Ptr &segment_pcl_msg) {
+    const tsdf_plusplus_msgs::SegmentedPointCloud::Ptr &segment_pcl_msg) {
 
   processSegmentPointcloud(segment_pcl_msg);
 
@@ -174,52 +172,55 @@ void Controller::segmentPointcloudCallback(
 
     clearFrame();
   }
+
+  publishReward();
 }
 
 void Controller::processSegmentPointcloud(
-    const tsdf_plusplus_msgs::MovementPointCloud::Ptr &segment_pcl_msg) {
+    const tsdf_plusplus_msgs::SegmentedPointCloud::Ptr &segment_pcl_msg) {
   // Look up transform from camera frame to world frame.
   if (lookupTransformTF(segment_pcl_msg->header.frame_id, world_frame_,
                         segment_pcl_msg->header.stamp, &T_G_C_)) {
     // Convert the PCL pointcloud into a Segment instance.
     voxblox::timing::Timer preprocess_timer("preprocess/segment");
 
-    // Horrible hack fix to fix color parsing colors in PCL.
-    for (size_t d = 0u; d < segment_pcl_msg->pointcloud.fields.size(); ++d) {
-      if (segment_pcl_msg->pointcloud.fields[d].name == std::string("rgb")) {
-        segment_pcl_msg->pointcloud.fields[d].datatype =
-            sensor_msgs::PointField::FLOAT32;
+    for (auto &segment_msg : segment_pcl_msg->segments) {
+      // Horrible hack fix to fix color parsing colors in PCL.
+      for (size_t d = 0u; d < segment_msg.pointcloud.fields.size(); ++d) {
+        if (segment_msg.pointcloud.fields[d].name == std::string("rgb")) {
+          segment_msg.pointcloud.fields[d].datatype =
+              sensor_msgs::PointField::FLOAT32;
+        }
+      }
+
+      Segment *segment;
+      if (using_ground_truth_segmentation_) {
+        pcl::PointCloud<GTInputPointType> pointcloud_pcl;
+        pcl::moveFromROSMsg(segment_msg.pointcloud, pointcloud_pcl);
+
+        segment = new Segment(pointcloud_pcl, T_G_C_, segment_msg.object_id);
+      } else {
+        pcl::PointCloud<InputPointType> pointcloud_pcl;
+        pcl::moveFromROSMsg(segment_msg.pointcloud, pointcloud_pcl);
+
+        segment = new Segment(pointcloud_pcl, T_G_C_);
+      }
+
+      // Add the segment to the collection of
+      // segments observed in the current frame.
+      current_frame_segments_.push_back(segment);
+
+      if (ground_truth_tracking_) {
+        // Convert Movement to Eigen Matrix
+        Eigen::Matrix4f movement =
+            Eigen::Map<Eigen::Matrix4f>(segment_msg.movement.data.data());
+        current_frame_movements_.push_back({segment_msg.is_moved, movement});
+      }
+
+      if (!using_ground_truth_segmentation_) {
+        integrator_->computeObjectOverlap(segment, &object_segment_overlap_);
       }
     }
-
-    Segment *segment;
-    if (using_ground_truth_segmentation_) {
-      pcl::PointCloud<GTInputPointType> pointcloud_pcl;
-      pcl::moveFromROSMsg(segment_pcl_msg->pointcloud, pointcloud_pcl);
-
-      segment = new Segment(pointcloud_pcl, T_G_C_);
-    } else {
-      pcl::PointCloud<InputPointType> pointcloud_pcl;
-      pcl::moveFromROSMsg(segment_pcl_msg->pointcloud, pointcloud_pcl);
-
-      segment = new Segment(pointcloud_pcl, T_G_C_);
-    }
-
-    // Add the segment to the collection of
-    // segments observed in the current frame.
-    current_frame_segments_.push_back(segment);
-
-    if (ground_truth_tracking_) {
-      // Convert Movement to Eigen Matrix
-      Eigen::Matrix4f movement =
-          Eigen::Map<Eigen::Matrix4f>(segment_pcl_msg->movement.data.data());
-      current_frame_movements_.push_back({segment_pcl_msg->is_moved, movement});
-    }
-
-    if (!using_ground_truth_segmentation_) {
-      integrator_->computeObjectOverlap(segment, &object_segment_overlap_);
-    }
-
     preprocess_timer.Stop();
   }
 }
@@ -576,9 +577,7 @@ bool Controller::saveObjectsCallback(std_srvs::Empty::Request & /*request*/,
   return true;
 }
 
-bool Controller::getRewardCallback(std_srvs::Empty::Request & /*request*/,
-                                   std_srvs::Empty::Response &
-                                   /*response*/) {
+bool Controller::publishReward() {
 
   {
     std::lock_guard<std::mutex> map_lock(map_mutex_);

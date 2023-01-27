@@ -13,9 +13,8 @@
 #include <tsdf_plusplus/integrator/integrator.h>
 #include <tsdf_plusplus/mesh/mesh_integrator.h>
 #include <tsdf_plusplus/visualizer/visualizer.h>
-#include <tsdf_plusplus_msgs/MovementInfo.h>
-#include <tsdf_plusplus_msgs/MovementPointCloud.h>
 #include <tsdf_plusplus_msgs/Reward.h>
+#include <tsdf_plusplus_msgs/SegmentedPointCloud.h>
 #include <voxblox/core/common.h>
 #include <voxblox/utils/timing.h>
 
@@ -37,7 +36,7 @@ public:
 
 protected:
   void processSegmentPointcloud(
-      const tsdf_plusplus_msgs::MovementPointCloud::Ptr &segment_pcl_msg);
+      const tsdf_plusplus_msgs::SegmentedPointCloud::Ptr &segment_pcl_msg);
 
   bool lookupTransformTF(const std::string &from_frame,
                          const std::string &to_frame,
@@ -58,7 +57,7 @@ protected:
   void updateMeshEvent(const ros::TimerEvent &event);
 
   void segmentPointcloudCallback(
-      const tsdf_plusplus_msgs::MovementPointCloud::Ptr &segment_pcl_msg);
+      const tsdf_plusplus_msgs::SegmentedPointCloud::Ptr &segment_pcl_msg);
 
   bool generateMeshCallback(std_srvs::Empty::Request & /*request*/,
                             std_srvs::Empty::Response & /*response*/);
@@ -71,8 +70,7 @@ protected:
   bool removeObjectsCallback(std_srvs::Empty::Request & /*request*/,
                              std_srvs::Empty::Response & /*response*/);
 
-  bool getRewardCallback(std_srvs::Empty::Request & /*request*/,
-                         std_srvs::Empty::Response & /*response*/);
+  bool publishReward();
 
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
@@ -160,7 +158,6 @@ protected:
   ros::ServiceServer save_objects_srv_;
   ros::ServiceServer move_object_srv_;
   ros::ServiceServer remove_objects_srv_;
-  ros::ServiceServer get_reward_srv_;
 
   // Publishers.
   ros::Publisher mesh_pub_;
