@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
   Controller controller(node_handle, node_handle_private);
 
   // Spinner with a number of threads equal to the number of cores.
-  ros::AsyncSpinner spinner(0);
+  ros::AsyncSpinner spinner(2);
   spinner.start();
   ros::waitForShutdown();
 
