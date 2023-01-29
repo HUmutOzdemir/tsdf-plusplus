@@ -71,6 +71,7 @@ protected:
                              std_srvs::Empty::Response & /*response*/);
 
   bool publishReward();
+  bool publishMap();
 
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
@@ -162,6 +163,7 @@ protected:
   // Publishers.
   ros::Publisher mesh_pub_;
   ros::Publisher reward_pub_;
+  ros::Publisher map_pub_;
 };
 
 #endif // TSDF_PLUSPLUS_ROS_CONTROLLER_H_

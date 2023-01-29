@@ -16,7 +16,8 @@
 #include <tsdf_plusplus/mesh/mesh_integrator.h>
 #include <tsdf_plusplus/utils/conversions.h>
 #include <tsdf_plusplus/utils/file_utils.h>
-#include <tsdf_plusplus_msgs/TransformationMatrix.h>
+#include <tsdf_plusplus_msgs/MovementPointCloud.h>
+#include <tsdf_plusplus_msgs/SegmentedPointCloud.h>
 #include <voxblox/io/mesh_ply.h>
 #include <voxblox/io/sdf_ply.h>
 #include <voxblox_msgs/Mesh.h>
@@ -110,6 +111,8 @@ Controller::Controller(const ros::NodeHandle &nh,
   mesh_pub_ = nh_private_.advertise<voxblox_msgs::Mesh>("mesh", 1, true);
   reward_pub_ =
       nh_private_.advertise<tsdf_plusplus_msgs::Reward>("reward", 1, true);
+  map_pub_ = nh_private_.advertise<tsdf_plusplus_msgs::SegmentedPointCloud>(
+      "map", 1, true);
 }
 
 Controller::~Controller() { vizualizer_thread_.join(); }
@@ -158,6 +161,7 @@ void Controller::getConfigFromRosParam(const ros::NodeHandle &nh_private) {
 void Controller::segmentPointcloudCallback(
     const tsdf_plusplus_msgs::SegmentedPointCloud::Ptr &segment_pcl_msg) {
 
+  last_segment_msg_time_ = segment_pcl_msg->header.stamp;
   processSegmentPointcloud(segment_pcl_msg);
 
   if (current_frame_segments_.size() > 0u) {
@@ -174,6 +178,7 @@ void Controller::segmentPointcloudCallback(
   }
 
   publishReward();
+  publishMap();
 }
 
 void Controller::processSegmentPointcloud(
@@ -603,6 +608,50 @@ bool Controller::publishReward() {
     }
 
     reward_pub_.publish(reward);
+  }
+
+  return true;
+}
+
+bool Controller::publishMap() {
+
+  {
+    std::lock_guard<std::mutex> map_lock(map_mutex_);
+
+    tsdf_plusplus_msgs::SegmentedPointCloud msg;
+    msg.header.frame_id = world_frame_;
+    msg.header.stamp = last_segment_msg_time_;
+
+    std::map<ObjectID, ObjectVolume *> *object_volumes =
+        map_->getObjectVolumesPtr();
+
+    for (const auto &pair : *object_volumes) {
+
+      tsdf_plusplus_msgs::MovementPointCloud pc_msg;
+      pc_msg.object_id = pair.first;
+
+      pcl::PointCloud<pcl::PointXYZ> pcl_pointcloud;
+
+      // Extract TSDF Layer of the Object
+      Layer<TsdfVoxel> *object_layer = pair.second->getTsdfLayerPtr();
+      // Get the indices of all allocated voxels
+      BlockIndexList all_object_blocks;
+      object_layer->getAllAllocatedBlocks(&all_object_blocks);
+      // Extract Positions of Each Voxel
+      for (const BlockIndex &block_index : all_object_blocks) {
+        const voxblox::Point c = getCenterPointFromGridIndex(
+            block_index, object_layer->block_size());
+        pcl_pointcloud.push_back(pcl::PointXYZ(c(0, 0), c(1, 0), c(2, 0)));
+      }
+
+      sensor_msgs::PointCloud2 object_msg;
+      pcl::toROSMsg(pcl_pointcloud, object_msg);
+      pc_msg.pointcloud = object_msg;
+
+      msg.segments.push_back(pc_msg);
+    }
+
+    map_pub_.publish(msg);
   }
 
   return true;
