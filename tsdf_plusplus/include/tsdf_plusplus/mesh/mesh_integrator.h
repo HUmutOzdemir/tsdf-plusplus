@@ -34,7 +34,7 @@
 using namespace voxblox;
 
 class MOMeshIntegrator {
- public:
+public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   struct Config {
@@ -46,51 +46,51 @@ class MOMeshIntegrator {
     size_t integrator_threads = std::thread::hardware_concurrency();
   };
 
-  MOMeshIntegrator(const Config& config, std::shared_ptr<Map> map,
+  MOMeshIntegrator(const Config &config, std::shared_ptr<Map> map,
                    std::shared_ptr<MeshLayer> mesh_layer);
 
   // Generates a mesh from the map_layer, returns a boolean
   // whether parts of the layer had to be re-meshed.
   bool generateMesh(bool only_mesh_updated_blocks, bool clear_updated_flag);
 
- protected:
-  void initFromLayer(const Layer<MOVoxel>& map_layer);
+protected:
+  void initFromLayer(const Layer<MOVoxel> &map_layer);
 
-  void generateMeshBlocksFunction(const BlockIndexList& all_map_blocks,
+  void generateMeshBlocksFunction(const BlockIndexList &all_map_blocks,
                                   bool clear_updated_flag,
-                                  ThreadSafeIndex* index_getter);
+                                  ThreadSafeIndex *index_getter);
 
-  void updateMeshForBlock(const BlockIndex& block_index,
-                          ObjectVolume** last_object_volume,
-                          ObjectID* last_object_id);
+  void updateMeshForBlock(const BlockIndex &block_index,
+                          ObjectVolume **last_object_volume,
+                          ObjectID *last_object_id);
 
-  void extractBlockMesh(const BlockIndex& block_index,
+  void extractBlockMesh(const BlockIndex &block_index,
                         typename Block<MOVoxel>::ConstPtr block,
-                        ObjectVolume** last_object_volume,
-                        ObjectID* last_object_id, Mesh::Ptr mesh);
+                        ObjectVolume **last_object_volume,
+                        ObjectID *last_object_id, Mesh::Ptr mesh);
 
-  void extractMeshInsideBlock(const BlockIndex& block_index,
-                              const Block<MOVoxel>& block,
-                              const VoxelIndex& index, const Point& coords,
-                              ObjectVolume** last_object_volume,
-                              ObjectID* last_object_id,
-                              VertexIndex* next_mesh_index, Mesh* mesh);
+  void extractMeshInsideBlock(const BlockIndex &block_index,
+                              const Block<MOVoxel> &block,
+                              const VoxelIndex &index, const Point &coords,
+                              ObjectVolume **last_object_volume,
+                              ObjectID *last_object_id,
+                              VertexIndex *next_mesh_index, Mesh *mesh);
 
-  void extractMeshOnBorder(const BlockIndex& block_index,
-                           const Block<MOVoxel>& block, const VoxelIndex& index,
-                           const Point& coords,
-                           ObjectVolume** last_object_volume,
-                           ObjectID* last_object_id,
-                           VertexIndex* next_mesh_index, Mesh* mesh);
+  void extractMeshOnBorder(const BlockIndex &block_index,
+                           const Block<MOVoxel> &block, const VoxelIndex &index,
+                           const Point &coords,
+                           ObjectVolume **last_object_volume,
+                           ObjectID *last_object_id,
+                           VertexIndex *next_mesh_index, Mesh *mesh);
 
-  void updateMeshColor(const Block<MOVoxel>& block, Mesh* mesh);
+  void updateMeshColor(const Block<MOVoxel> &block, Mesh *mesh);
 
   Config config_;
 
   // Map containing the TSDF++ global map layer and the object volumes.
-  Map* map_;
+  Map *map_;
 
-  MeshLayer* mesh_layer_;
+  MeshLayer *mesh_layer_;
 
   // Cached map config.
   FloatingPoint voxel_size_;
@@ -108,4 +108,4 @@ class MOMeshIntegrator {
   ColorMap color_map_;
 };
 
-#endif  // TSDF_PLUSPLUS_MESH_MESH_INTEGRATOR_H_
+#endif // TSDF_PLUSPLUS_MESH_MESH_INTEGRATOR_H_

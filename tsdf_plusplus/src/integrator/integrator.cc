@@ -6,9 +6,8 @@
 #include <pcl/common/centroid.h>
 #include <voxblox/core/voxel.h>
 
-Integrator::Integrator(const Config& config, std::shared_ptr<Map> map)
-    : config_(config),
-      map_(map.get()),
+Integrator::Integrator(const Config &config, std::shared_ptr<Map> map)
+    : config_(config), map_(map.get()),
       highest_object_id_(map->getHighestObjectIdPtr()) {
   voxel_size_ = map_->getMapLayerPtr()->voxel_size();
   block_size_ = map_->getMapLayerPtr()->block_size();
@@ -29,14 +28,14 @@ Integrator::Integrator(const Config& config, std::shared_ptr<Map> map)
 }
 
 void Integrator::computeObjectOverlap(
-    Segment* segment,
-    std::map<ObjectID, SegmentHistogram>* object_segment_overlap) {
+    Segment *segment,
+    std::map<ObjectID, SegmentHistogram> *object_segment_overlap) {
   CHECK_NOTNULL(segment);
   CHECK_NOTNULL(object_segment_overlap);
 
   bool exists_overlapping_object = false;
 
-  for (const Point& point_C : segment->points_C_) {
+  for (const Point &point_C : segment->points_C_) {
     const Point point_G = segment->T_G_C_ * point_C;
 
     // Get the corresponding voxel by 3D position in world frame.
@@ -45,7 +44,7 @@ void Integrator::computeObjectOverlap(
 
     if (mo_block_ptr) {
       // Get the id of the currently active object at this 3D position.
-      const MOVoxel& mo_voxel = mo_block_ptr->getVoxelByCoordinates(point_G);
+      const MOVoxel &mo_voxel = mo_block_ptr->getVoxelByCoordinates(point_G);
       ObjectID object_id = mo_voxel.active_object.object_id;
 
       if (object_id != EmptyID) {
@@ -68,8 +67,8 @@ void Integrator::computeObjectOverlap(
 }
 
 void Integrator::increaseOverlapCount(
-    const ObjectID object_id, Segment* segment, size_t count,
-    std::map<ObjectID, SegmentHistogram>* object_segment_overlap) {
+    const ObjectID object_id, Segment *segment, size_t count,
+    std::map<ObjectID, SegmentHistogram> *object_segment_overlap) {
   CHECK_NOTNULL(segment);
   CHECK_NOTNULL(object_segment_overlap);
 
@@ -90,17 +89,17 @@ void Integrator::increaseOverlapCount(
 }
 
 void Integrator::assignObjectIds(
-    std::vector<Segment*>* current_frame_segments,
-    std::map<ObjectID, SegmentHistogram>* object_segment_overlap,
-    std::map<ObjectID, Segment*>* object_merged_segments) {
+    std::vector<Segment *> *current_frame_segments,
+    std::map<ObjectID, SegmentHistogram> *object_segment_overlap,
+    std::map<ObjectID, Segment *> *object_merged_segments) {
   CHECK_NOTNULL(object_segment_overlap);
 
-  std::set<Segment*> assigned_segments;
-  std::pair<Segment*, ObjectID> segment_object_pair;
+  std::set<Segment *> assigned_segments;
+  std::pair<Segment *, ObjectID> segment_object_pair;
 
   while (nextSegmentObjectPair(*object_segment_overlap, assigned_segments,
                                &segment_object_pair)) {
-    Segment* segment = segment_object_pair.first;
+    Segment *segment = segment_object_pair.first;
     CHECK_NOTNULL(segment);
     ObjectID object_id = segment_object_pair.second;
 
@@ -115,7 +114,7 @@ void Integrator::assignObjectIds(
     // The segment has been assigned an object_id from the map.
     assigned_segments.emplace(segment);
 
-    ObjectVolume* object_volume = map_->getObjectVolumePtrById(object_id);
+    ObjectVolume *object_volume = map_->getObjectVolumePtrById(object_id);
 
     if (object_volume) {
       if (segment->semantic_class_ == BackgroundClass &&
@@ -129,7 +128,7 @@ void Integrator::assignObjectIds(
 
   // All segments which have not been assigned an object_id among their
   // overlapping map objects are assigned a new, previously unseen object_id.
-  for (Segment* segment : *current_frame_segments) {
+  for (Segment *segment : *current_frame_segments) {
     if (assigned_segments.find(segment) == assigned_segments.end()) {
       segment->object_id_ = getFreshObjectId();
       assigned_segments.emplace(segment);
@@ -139,17 +138,17 @@ void Integrator::assignObjectIds(
 }
 
 bool Integrator::nextSegmentObjectPair(
-    const std::map<ObjectID, SegmentHistogram>& object_segment_overlap,
-    const std::set<Segment*>& assigned_segments,
-    std::pair<Segment*, ObjectID>* segment_object_pair) {
+    const std::map<ObjectID, SegmentHistogram> &object_segment_overlap,
+    const std::set<Segment *> &assigned_segments,
+    std::pair<Segment *, ObjectID> *segment_object_pair) {
   size_t max_overlap_count = 0u;
   ObjectID max_object_id;
-  Segment* max_segment;
+  Segment *max_segment;
 
-  for (auto const& object_pair : object_segment_overlap) {
+  for (auto const &object_pair : object_segment_overlap) {
     ObjectID object_id = object_pair.first;
-    for (auto const& segment_pair : object_pair.second) {
-      Segment* segment = segment_pair.first;
+    for (auto const &segment_pair : object_pair.second) {
+      Segment *segment = segment_pair.first;
       size_t overlap_count = segment_pair.second;
 
       float overlap_ratio =
@@ -179,7 +178,7 @@ bool Integrator::nextSegmentObjectPair(
   return true;
 }
 
-void Integrator::integrateSegment(const Segment& segment) {
+void Integrator::integrateSegment(const Segment &segment) {
   timing::Timer integrate_segment_timer("integrate/segment");
   CHECK_EQ(segment.points_C_.size(), segment.colors_.size());
 
@@ -224,16 +223,16 @@ void Integrator::integrateSegment(const Segment& segment) {
 }
 
 void Integrator::bundleRays(
-    const Transformation& T_G_C, const Pointcloud& points_C,
-    ThreadSafeIndex* index_getter,
-    LongIndexHashMapType<AlignedVector<size_t>>::type* voxel_map,
-    LongIndexHashMapType<AlignedVector<size_t>>::type* clear_map) {
+    const Transformation &T_G_C, const Pointcloud &points_C,
+    ThreadSafeIndex *index_getter,
+    LongIndexHashMapType<AlignedVector<size_t>>::type *voxel_map,
+    LongIndexHashMapType<AlignedVector<size_t>>::type *clear_map) {
   CHECK(voxel_map != nullptr);
   CHECK(clear_map != nullptr);
 
   size_t point_idx;
   while (index_getter->getNextIndex(&point_idx)) {
-    const Point& point_C = points_C[point_idx];
+    const Point &point_C = points_C[point_idx];
     bool is_clearing;
     if (!isPointValid(point_C, &is_clearing)) {
       continue;
@@ -257,12 +256,12 @@ void Integrator::bundleRays(
 }
 
 void Integrator::integrateRays(
-    const Transformation& T_G_C, const Pointcloud& points_C,
-    const Point centroid, const ObjectID& object_id,
-    const SemanticClass& semantic_class, const Colors& colors,
+    const Transformation &T_G_C, const Pointcloud &points_C,
+    const Point centroid, const ObjectID &object_id,
+    const SemanticClass &semantic_class, const Colors &colors,
     bool enable_anti_grazing, bool clearing_ray,
-    const LongIndexHashMapType<AlignedVector<size_t>>::type& voxel_map,
-    const LongIndexHashMapType<AlignedVector<size_t>>::type& clear_map) {
+    const LongIndexHashMapType<AlignedVector<size_t>>::type &voxel_map,
+    const LongIndexHashMapType<AlignedVector<size_t>>::type &clear_map) {
   // If only 1 thread just do function call, otherwise spawn threads.
   if (config_.integrator_threads == 1) {
     constexpr size_t thread_idx = 0u;
@@ -280,7 +279,7 @@ void Integrator::integrateRays(
           std::cref(clear_map), i);
     }
 
-    for (std::thread& thread : integration_threads) {
+    for (std::thread &thread : integration_threads) {
       thread.join();
     }
   }
@@ -292,12 +291,12 @@ void Integrator::integrateRays(
 }
 
 void Integrator::integrateVoxels(
-    const Transformation& T_G_C, const Pointcloud& points_C,
-    const Point centroid, const ObjectID& object_id,
-    const SemanticClass& semantic_class, const Colors& colors,
+    const Transformation &T_G_C, const Pointcloud &points_C,
+    const Point centroid, const ObjectID &object_id,
+    const SemanticClass &semantic_class, const Colors &colors,
     bool enable_anti_grazing, bool clearing_ray,
-    const LongIndexHashMapType<AlignedVector<size_t>>::type& voxel_map,
-    const LongIndexHashMapType<AlignedVector<size_t>>::type& clear_map,
+    const LongIndexHashMapType<AlignedVector<size_t>>::type &voxel_map,
+    const LongIndexHashMapType<AlignedVector<size_t>>::type &clear_map,
     size_t thread_idx) {
   LongIndexHashMapType<AlignedVector<size_t>>::type::const_iterator it;
   size_t map_size;
@@ -319,17 +318,17 @@ void Integrator::integrateVoxels(
 }
 
 void Integrator::integrateVoxel(
-    const Transformation& T_G_C, const Pointcloud& points_C,
-    const Point centroid, const ObjectID& object_id,
-    const SemanticClass& semantic_class, const Colors& colors,
+    const Transformation &T_G_C, const Pointcloud &points_C,
+    const Point centroid, const ObjectID &object_id,
+    const SemanticClass &semantic_class, const Colors &colors,
     bool enable_anti_grazing, bool clearing_ray,
-    const std::pair<GlobalIndex, AlignedVector<size_t>>& kv,
-    const LongIndexHashMapType<AlignedVector<size_t>>::type& voxel_map) {
+    const std::pair<GlobalIndex, AlignedVector<size_t>> &kv,
+    const LongIndexHashMapType<AlignedVector<size_t>>::type &voxel_map) {
   if (kv.second.empty()) {
     return;
   }
 
-  const Point& origin = T_G_C.getPosition();
+  const Point &origin = T_G_C.getPosition();
   Color merged_color;
   Point merged_point_C = Point::Zero();
   FloatingPoint merged_weight = 0.0;
@@ -338,8 +337,8 @@ void Integrator::integrateVoxel(
   ObjectID merged_object_id = object_id;
 
   for (const size_t pt_idx : kv.second) {
-    const Point& point_C = points_C[pt_idx];
-    const Color& color = colors[pt_idx];
+    const Point &point_C = points_C[pt_idx];
+    const Color &color = colors[pt_idx];
 
     const float point_weight = getVoxelWeight(point_C);
     if (point_weight < kEpsilon) {
@@ -367,7 +366,7 @@ void Integrator::integrateVoxel(
   BlockIndex block_idx;
 
   ObjectID last_object_id;
-  ObjectVolume* last_object_volume = nullptr;
+  ObjectVolume *last_object_volume = nullptr;
 
   // The pair block_idx and block of either layer must be updated together,
   // else it is invalid. Therefore, keep a separate pair for the TsdfVoxel.
@@ -385,7 +384,7 @@ void Integrator::integrateVoxel(
       }
     }
 
-    MOVoxel* voxel =
+    MOVoxel *voxel =
         allocateStorageAndGetVoxelPtr(global_voxel_idx, &block, &block_idx);
 
     updateMOVoxel(centroid, semantic_class, origin, merged_point_G,
@@ -395,9 +394,10 @@ void Integrator::integrateVoxel(
   }
 }
 
-MOVoxel* Integrator::allocateStorageAndGetVoxelPtr(
-    const GlobalIndex& global_voxel_idx, Block<MOVoxel>::Ptr* last_block,
-    BlockIndex* last_block_idx) {
+MOVoxel *
+Integrator::allocateStorageAndGetVoxelPtr(const GlobalIndex &global_voxel_idx,
+                                          Block<MOVoxel>::Ptr *last_block,
+                                          BlockIndex *last_block_idx) {
   CHECK_NOTNULL(last_block);
   CHECK_NOTNULL(last_block_idx);
 
@@ -445,7 +445,7 @@ void Integrator::updateLayerWithStoredBlocks() {
   BlockIndex last_block_idx;
   Block<MOVoxel>::Ptr block = nullptr;
 
-  for (const std::pair<const BlockIndex, Block<MOVoxel>::Ptr>& temp_block_pair :
+  for (const std::pair<const BlockIndex, Block<MOVoxel>::Ptr> &temp_block_pair :
        temp_block_map_) {
     map_->getMapLayerPtr()->insertBlock(temp_block_pair);
   }
@@ -455,19 +455,19 @@ void Integrator::updateLayerWithStoredBlocks() {
   auto object_volumes = map_->getObjectVolumesPtr();
 
   for (auto pair : *object_volumes) {
-    ObjectVolume* object_volume = pair.second;
+    ObjectVolume *object_volume = pair.second;
     object_volume->updateLayerWithStoredBlocks();
   }
 }
 
 // Updates map layer voxel and corresponding object volume voxel. Thread safe.
 void Integrator::updateMOVoxel(
-    const Point centroid, const SemanticClass& semantic_class,
-    const Point& origin, const Point& point_G, const ObjectID& object_id,
-    const GlobalIndex& global_voxel_idx, const Color& color, const float weight,
-    MOVoxel* mo_voxel, ObjectVolume** last_object_volume,
-    ObjectID* last_object_id, Block<TsdfVoxel>::Ptr* last_tsdf_block,
-    BlockIndex* last_tsdf_block_idx) {
+    const Point centroid, const SemanticClass &semantic_class,
+    const Point &origin, const Point &point_G, const ObjectID &object_id,
+    const GlobalIndex &global_voxel_idx, const Color &color, const float weight,
+    MOVoxel *mo_voxel, ObjectVolume **last_object_volume,
+    ObjectID *last_object_id, Block<TsdfVoxel>::Ptr *last_tsdf_block,
+    BlockIndex *last_tsdf_block_idx) {
   CHECK(mo_voxel != nullptr);
 
   const Point voxel_center =
@@ -530,7 +530,7 @@ void Integrator::updateMOVoxel(
 
   // TODO(margaritaG): experiment with mo_voxel->active_object.object_id for
   // real-world segmentation.
-  TsdfVoxel* tsdf_voxel = map_->allocateStorageAndGetVoxelPtr(
+  TsdfVoxel *tsdf_voxel = map_->allocateStorageAndGetVoxelPtr(
       centroid, semantic_class, object_id, global_voxel_idx, last_object_volume,
       last_object_id, last_tsdf_block, last_tsdf_block_idx);
 
@@ -562,8 +562,8 @@ void Integrator::updateMOVoxel(
 // To do this, project the voxel_center onto the ray from origin to point G.
 // Then check if the the magnitude of the vector is smaller or greater than
 // the original distance.
-float Integrator::computeDistance(const Point& origin, const Point& point_G,
-                                  const Point& voxel_center) const {
+float Integrator::computeDistance(const Point &origin, const Point &point_G,
+                                  const Point &voxel_center) const {
   const Point v_voxel_origin = voxel_center - origin;
   const Point v_point_origin = point_G - origin;
 
@@ -576,7 +576,7 @@ float Integrator::computeDistance(const Point& origin, const Point& point_G,
 }
 
 // Thread safe.
-float Integrator::getVoxelWeight(const Point& point_C) const {
+float Integrator::getVoxelWeight(const Point &point_C) const {
   if (config_.use_const_weight) {
     return 1.0f;
   }

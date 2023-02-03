@@ -14,9 +14,9 @@
 using namespace voxblox;
 
 class ObjectVolume {
- public:
+public:
   ObjectVolume(float voxel_size, size_t voxels_per_side, const Point centroid,
-               const SemanticClass& semantic_class);
+               const SemanticClass &semantic_class);
 
   inline SemanticClass getSemanticClass() { return semantic_class_; }
 
@@ -24,7 +24,7 @@ class ObjectVolume {
     semantic_class_ = semantic_class;
   }
 
-  inline Layer<TsdfVoxel>* getTsdfLayerPtr() { return tsdf_layer_.get(); }
+  inline Layer<TsdfVoxel> *getTsdfLayerPtr() { return tsdf_layer_.get(); }
 
   inline Transformation getPose() { return pose_; }
 
@@ -36,16 +36,16 @@ class ObjectVolume {
   // temp_block_map_ is controlled via a mutex allowing it to grow in a thread
   // safe manner during integration. These temporary blocks can be merged into
   // the TSDF layer by calling updateLayerWithStoredBlocks().
-  Block<TsdfVoxel>::Ptr allocateStorageAndGetBlockPtr(
-      const BlockIndex& block_idx);
+  Block<TsdfVoxel>::Ptr
+  allocateStorageAndGetBlockPtr(const BlockIndex &block_idx);
 
   // Merges temporarily stored blocks into the TSDF layer.
   // NOT thread safe, see allocateStorageAndGetBlockPtr() for more details.
   void updateLayerWithStoredBlocks();
 
- protected:
+protected:
   // TSDF layer of the object.
-  std::shared_ptr<Layer<TsdfVoxel>> tsdf_layer_;
+  std::unique_ptr<Layer<TsdfVoxel>> tsdf_layer_;
 
   SemanticClass semantic_class_;
 
@@ -59,4 +59,4 @@ class ObjectVolume {
   Transformation pose_;
 };
 
-#endif  // TSDF_PLUSPLUS_CORE_OBJECT_VOLUME_H_
+#endif // TSDF_PLUSPLUS_CORE_OBJECT_VOLUME_H_

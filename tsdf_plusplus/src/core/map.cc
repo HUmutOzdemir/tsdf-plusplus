@@ -357,3 +357,18 @@ void Map::removeObject(const ObjectID &object_id) {
     mo_block->updated().set();
   }
 }
+
+void Map::clear() {
+  // Reset Map Layer
+  map_layer_.reset(
+      new Layer<MOVoxel>(config_.voxel_size, config_.voxels_per_side));
+
+  // Reset Highest Object ID
+  *highest_object_id_ = ObjectID();
+
+  // Reset Object Volumes
+  for (auto &pair : *object_volumes_) {
+    delete pair.second;
+  }
+  object_volumes_->clear();
+}

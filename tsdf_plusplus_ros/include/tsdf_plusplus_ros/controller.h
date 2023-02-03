@@ -6,6 +6,7 @@
 
 #include <message_filters/subscriber.h>
 #include <ros/ros.h>
+#include <std_msgs/Bool.h>
 #include <std_srvs/Empty.h>
 #include <tf/message_filter.h>
 #include <tsdf_plusplus/alignment/icp.h>
@@ -54,6 +55,8 @@ protected:
 
   void clearFrame();
 
+  void resetCallback(const std_msgs::Bool::Ptr &reset_msg);
+
   void updateMeshEvent(const ros::TimerEvent &event);
 
   void segmentPointcloudCallback(
@@ -78,6 +81,7 @@ protected:
 
   // Data subscribers.
   ros::Subscriber pointcloud_sub_;
+  ros::Subscriber reset_sub_;
 
   // Will throttle to this message rate.
   ros::Duration min_time_between_msgs_;

@@ -26,7 +26,7 @@
 
 using namespace voxblox;
 
-MOMeshIntegrator::MOMeshIntegrator(const Config& config,
+MOMeshIntegrator::MOMeshIntegrator(const Config &config,
                                    std::shared_ptr<Map> map,
                                    std::shared_ptr<MeshLayer> mesh_layer)
     : config_(config), map_(map.get()), mesh_layer_(mesh_layer.get()) {
@@ -41,7 +41,7 @@ MOMeshIntegrator::MOMeshIntegrator(const Config& config,
   }
 }
 
-void MOMeshIntegrator::initFromLayer(const Layer<MOVoxel>& map_layer) {
+void MOMeshIntegrator::initFromLayer(const Layer<MOVoxel> &map_layer) {
   voxel_size_ = map_layer.voxel_size();
   block_size_ = map_layer.block_size();
   voxels_per_side_ = map_layer.voxels_per_side();
@@ -64,7 +64,7 @@ bool MOMeshIntegrator::generateMesh(bool only_mesh_updated_blocks,
   }
 
   // Allocate all the mesh memory.
-  for (const BlockIndex& block_index : all_map_blocks) {
+  for (const BlockIndex &block_index : all_map_blocks) {
     mesh_layer_->allocateMeshPtrByIndex(block_index);
   }
 
@@ -79,7 +79,7 @@ bool MOMeshIntegrator::generateMesh(bool only_mesh_updated_blocks,
         std::cref(all_map_blocks), clear_updated_flag, index_getter.get());
   }
 
-  for (std::thread& thread : integration_threads) {
+  for (std::thread &thread : integration_threads) {
     thread.join();
   }
 
@@ -87,16 +87,16 @@ bool MOMeshIntegrator::generateMesh(bool only_mesh_updated_blocks,
 }
 
 void MOMeshIntegrator::generateMeshBlocksFunction(
-    const BlockIndexList& all_map_blocks, bool clear_updated_flag,
-    ThreadSafeIndex* index_getter) {
+    const BlockIndexList &all_map_blocks, bool clear_updated_flag,
+    ThreadSafeIndex *index_getter) {
   CHECK(index_getter != nullptr);
 
   ObjectID last_object_id;
-  ObjectVolume* last_object_volume = nullptr;
+  ObjectVolume *last_object_volume = nullptr;
 
   size_t list_idx;
   while (index_getter->getNextIndex(&list_idx)) {
-    const BlockIndex& block_idx = all_map_blocks[list_idx];
+    const BlockIndex &block_idx = all_map_blocks[list_idx];
     updateMeshForBlock(block_idx, &last_object_volume, &last_object_id);
     if (clear_updated_flag) {
       typename Block<MOVoxel>::Ptr block =
@@ -106,9 +106,9 @@ void MOMeshIntegrator::generateMeshBlocksFunction(
   }
 }
 
-void MOMeshIntegrator::updateMeshForBlock(const BlockIndex& block_index,
-                                          ObjectVolume** last_object_volume,
-                                          ObjectID* last_object_id) {
+void MOMeshIntegrator::updateMeshForBlock(const BlockIndex &block_index,
+                                          ObjectVolume **last_object_volume,
+                                          ObjectID *last_object_id) {
   Mesh::Ptr mesh = mesh_layer_->getMeshPtrByIndex(block_index);
   mesh->clear();
   // This block should already exist, otherwise it makes no sense to update
@@ -132,10 +132,10 @@ void MOMeshIntegrator::updateMeshForBlock(const BlockIndex& block_index,
   mesh->updated = true;
 }
 
-void MOMeshIntegrator::extractBlockMesh(const BlockIndex& block_index,
+void MOMeshIntegrator::extractBlockMesh(const BlockIndex &block_index,
                                         typename Block<MOVoxel>::ConstPtr block,
-                                        ObjectVolume** last_object_volume,
-                                        ObjectID* last_object_id,
+                                        ObjectVolume **last_object_volume,
+                                        ObjectID *last_object_id,
                                         Mesh::Ptr mesh) {
   CHECK(block != nullptr);
   CHECK(mesh != nullptr);
@@ -194,10 +194,10 @@ void MOMeshIntegrator::extractBlockMesh(const BlockIndex& block_index,
 }
 
 void MOMeshIntegrator::extractMeshInsideBlock(
-    const BlockIndex& block_index, const Block<MOVoxel>& block,
-    const VoxelIndex& index, const Point& coords,
-    ObjectVolume** last_object_volume, ObjectID* last_object_id,
-    VertexIndex* next_mesh_index, Mesh* mesh) {
+    const BlockIndex &block_index, const Block<MOVoxel> &block,
+    const VoxelIndex &index, const Point &coords,
+    ObjectVolume **last_object_volume, ObjectID *last_object_id,
+    VertexIndex *next_mesh_index, Mesh *mesh) {
   CHECK(next_mesh_index != nullptr);
   CHECK(mesh != nullptr);
 
@@ -212,7 +212,7 @@ void MOMeshIntegrator::extractMeshInsideBlock(
 
   for (unsigned int i = 0; i < 8; ++i) {
     VoxelIndex corner_index = index + cube_index_offsets_.col(i);
-    const MOVoxel& voxel = block.getVoxelByVoxelIndex(corner_index);
+    const MOVoxel &voxel = block.getVoxelByVoxelIndex(corner_index);
 
     // Get the id of the object currently active at this voxel.
     ObjectID object_id = voxel.active_object.object_id;
@@ -223,7 +223,7 @@ void MOMeshIntegrator::extractMeshInsideBlock(
     }
 
     // Get the corresponding TSDF voxel of the object.
-    TsdfVoxel* tsdf_voxel = map_->getTsdfVoxelPtrByVoxelIndex(
+    TsdfVoxel *tsdf_voxel = map_->getTsdfVoxelPtrByVoxelIndex(
         object_id, block_index, corner_index, last_object_volume,
         last_object_id, &last_tsdf_block, &last_tsdf_block_idx);
 
@@ -249,10 +249,10 @@ void MOMeshIntegrator::extractMeshInsideBlock(
 }
 
 void MOMeshIntegrator::extractMeshOnBorder(
-    const BlockIndex& block_index, const Block<MOVoxel>& block,
-    const VoxelIndex& index, const Point& coords,
-    ObjectVolume** last_object_volume, ObjectID* last_object_id,
-    VertexIndex* next_mesh_index, Mesh* mesh) {
+    const BlockIndex &block_index, const Block<MOVoxel> &block,
+    const VoxelIndex &index, const Point &coords,
+    ObjectVolume **last_object_volume, ObjectID *last_object_id,
+    VertexIndex *next_mesh_index, Mesh *mesh) {
   CHECK(mesh != nullptr);
 
   Block<TsdfVoxel>::Ptr last_tsdf_block = nullptr;
@@ -270,7 +270,7 @@ void MOMeshIntegrator::extractMeshOnBorder(
     VoxelIndex corner_index = index + cube_index_offsets_.col(i);
 
     if (block.isValidVoxelIndex(corner_index)) {
-      const MOVoxel& voxel = block.getVoxelByVoxelIndex(corner_index);
+      const MOVoxel &voxel = block.getVoxelByVoxelIndex(corner_index);
       // Get the id of the object currently active at this voxel.
       ObjectID object_id = voxel.active_object.object_id;
 
@@ -281,7 +281,7 @@ void MOMeshIntegrator::extractMeshOnBorder(
 
       // TODO(margaritaG): investigate occasional segfault here.
       // Get the corresponding TSDF voxel of the object.
-      TsdfVoxel* tsdf_voxel = map_->getTsdfVoxelPtrByVoxelIndex(
+      TsdfVoxel *tsdf_voxel = map_->getTsdfVoxelPtrByVoxelIndex(
           object_id, block_index, corner_index, last_object_volume,
           last_object_id, &last_tsdf_block, &last_tsdf_block_idx);
 
@@ -317,11 +317,11 @@ void MOMeshIntegrator::extractMeshOnBorder(
       BlockIndex neighbor_index = block.block_index() + block_offset;
 
       if (map_->getMapLayerPtr()->hasBlock(neighbor_index)) {
-        const Block<MOVoxel>& neighbor_block =
+        const Block<MOVoxel> &neighbor_block =
             map_->getMapLayerPtr()->getBlockByIndex(neighbor_index);
 
         CHECK(neighbor_block.isValidVoxelIndex(corner_index));
-        const MOVoxel& voxel =
+        const MOVoxel &voxel =
             neighbor_block.getVoxelByVoxelIndex(corner_index);
         // Get the id of the object currently active at this voxel.
         ObjectID object_id = voxel.active_object.object_id;
@@ -332,7 +332,7 @@ void MOMeshIntegrator::extractMeshOnBorder(
         }
 
         // Get the corresponding TSDF voxel of the object.
-        TsdfVoxel* tsdf_voxel = map_->getTsdfVoxelPtrByVoxelIndex(
+        TsdfVoxel *tsdf_voxel = map_->getTsdfVoxelPtrByVoxelIndex(
             object_id, neighbor_index, corner_index, last_object_volume,
             last_object_id, &last_tsdf_block, &last_tsdf_block_idx);
 
@@ -362,8 +362,8 @@ void MOMeshIntegrator::extractMeshOnBorder(
   }
 }
 
-void MOMeshIntegrator::updateMeshColor(const Block<MOVoxel>& block,
-                                       Mesh* mesh) {
+void MOMeshIntegrator::updateMeshColor(const Block<MOVoxel> &block,
+                                       Mesh *mesh) {
   CHECK(mesh != nullptr);
 
   mesh->colors.clear();
@@ -371,12 +371,12 @@ void MOMeshIntegrator::updateMeshColor(const Block<MOVoxel>& block,
 
   // Use nearest-neighbor search.
   for (size_t i = 0; i < mesh->vertices.size(); i++) {
-    const Point& vertex = mesh->vertices[i];
+    const Point &vertex = mesh->vertices[i];
     VoxelIndex voxel_index = block.computeVoxelIndexFromCoordinates(vertex);
     if (block.isValidVoxelIndex(voxel_index)) {
-      const MOVoxel& voxel = block.getVoxelByVoxelIndex(voxel_index);
+      const MOVoxel &voxel = block.getVoxelByVoxelIndex(voxel_index);
       ObjectID object_id = voxel.active_object.object_id;
-      ObjectVolume* object_volume = map_->getObjectVolumePtrById(object_id);
+      ObjectVolume *object_volume = map_->getObjectVolumePtrById(object_id);
       if (config_.using_ground_truth_segmentation) {
         if (object_id != 0u) {
           color_map_.getColor(object_id, &(mesh->colors[i]));
@@ -393,9 +393,9 @@ void MOMeshIntegrator::updateMeshColor(const Block<MOVoxel>& block,
     } else {
       const typename Block<MOVoxel>::ConstPtr neighbor_block =
           map_->getMapLayerPtr()->getBlockPtrByCoordinates(vertex);
-      const MOVoxel& voxel = neighbor_block->getVoxelByCoordinates(vertex);
+      const MOVoxel &voxel = neighbor_block->getVoxelByCoordinates(vertex);
       ObjectID object_id = voxel.active_object.object_id;
-      ObjectVolume* object_volume = map_->getObjectVolumePtrById(object_id);
+      ObjectVolume *object_volume = map_->getObjectVolumePtrById(object_id);
       if (config_.using_ground_truth_segmentation) {
         if (object_id != 0u) {
           color_map_.getColor(object_id, &(mesh->colors[i]));

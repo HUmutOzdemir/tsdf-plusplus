@@ -45,6 +45,8 @@ Controller::Controller(const ros::NodeHandle &nh,
       ground_truth_tracking_(false) {
   getConfigFromRosParam(nh_private);
 
+  last_segment_msg_time_ = ros::Time(0);
+
   // Subcribe to input pointcloud.
   std::string segment_pointcloud_topic =
       "/depth_segmentation_node/object_segment";
@@ -59,6 +61,10 @@ Controller::Controller(const ros::NodeHandle &nh,
   pointcloud_sub_ =
       nh_.subscribe(segment_pointcloud_topic, pointcloud_queue_size,
                     &Controller::segmentPointcloudCallback, this);
+
+  std::string reset_topic = "/tsdf_plusplus_node/reset";
+  nh_private_.param<std::string>("reset_topic", reset_topic, reset_topic);
+  reset_sub_ = nh_.subscribe(reset_topic, 1, &Controller::resetCallback, this);
 
   // Initialize map and integrator.
   map_.reset(new Map(map_config));
@@ -179,6 +185,70 @@ void Controller::segmentPointcloudCallback(
 
   publishReward();
   publishMap();
+
+  tsdf_plusplus_msgs::Reward reward;
+  reward.number_of_objects = 0;
+  reward.number_of_occupied_voxels = 0;
+
+  std::map<ObjectID, ObjectVolume *> *object_volumes =
+      map_->getObjectVolumesPtr();
+  for (const auto &pair : *object_volumes) {
+    // Count Number of Objects
+    reward.number_of_objects++;
+    // Count Number of Voxels
+    Layer<TsdfVoxel> *object_layer = pair.second->getTsdfLayerPtr();
+    reward.number_of_occupied_voxels +=
+        object_layer->getNumberOfAllocatedBlocks();
+
+    // Store Object Level Stats
+    reward.object_ids.push_back(pair.first);
+    reward.object_number_of_voxels.push_back(
+        object_layer->getNumberOfAllocatedBlocks());
+  }
+
+  LOG(ERROR) << "[UPDATE] Number of Voxels: "
+             << reward.number_of_occupied_voxels;
+}
+
+void Controller::resetCallback(const std_msgs::Bool::Ptr &reset_msg) {
+
+  if (!reset_msg->data)
+    return;
+
+  // Reset Varibales to Reset Map State
+  frame_number_ = 0u;
+  *mesh_layer_updated_ = false; // ????
+  *camera_extrinsics_ = Eigen::Matrix4f();
+
+  last_segment_msg_time_ = ros::Time(0);
+
+  map_->clear();
+  mesh_layer_->clear();
+
+  clearFrame();
+
+  tsdf_plusplus_msgs::Reward reward;
+  reward.number_of_objects = 0;
+  reward.number_of_occupied_voxels = 0;
+
+  std::map<ObjectID, ObjectVolume *> *object_volumes =
+      map_->getObjectVolumesPtr();
+  for (const auto &pair : *object_volumes) {
+    // Count Number of Objects
+    reward.number_of_objects++;
+    // Count Number of Voxels
+    Layer<TsdfVoxel> *object_layer = pair.second->getTsdfLayerPtr();
+    reward.number_of_occupied_voxels +=
+        object_layer->getNumberOfAllocatedBlocks();
+
+    // Store Object Level Stats
+    reward.object_ids.push_back(pair.first);
+    reward.object_number_of_voxels.push_back(
+        object_layer->getNumberOfAllocatedBlocks());
+  }
+
+  LOG(ERROR) << "[RESET] Number of Voxels: "
+             << reward.number_of_occupied_voxels;
 }
 
 void Controller::processSegmentPointcloud(
@@ -494,7 +564,8 @@ void Controller::updateMeshEvent(const ros::TimerEvent &event) {
     timing::Timer mesh_msg_timer("mesh/publish_msg");
 
     voxblox_msgs::Mesh mesh_msg;
-    generateVoxbloxMeshMsg(mesh_layer_, voxblox::ColorMode::kColor, &mesh_msg);
+    generateVoxbloxMeshMsg(mesh_layer_.get(), voxblox::ColorMode::kColor,
+                           &mesh_msg);
     mesh_msg.header.frame_id = world_frame_;
     mesh_pub_.publish(mesh_msg);
 
@@ -526,7 +597,7 @@ bool Controller::generateMeshCallback(std_srvs::Empty::Request & /*request*/,
       timing::Timer mesh_msg_timer("mesh/publish_msg");
 
       voxblox_msgs::Mesh mesh_msg;
-      generateVoxbloxMeshMsg(mesh_layer_, voxblox::ColorMode::kColor,
+      generateVoxbloxMeshMsg(mesh_layer_.get(), voxblox::ColorMode::kColor,
                              &mesh_msg);
       mesh_msg.header.frame_id = world_frame_;
       mesh_pub_.publish(mesh_msg);
