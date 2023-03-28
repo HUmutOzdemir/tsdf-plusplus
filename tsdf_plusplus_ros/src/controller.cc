@@ -185,29 +185,6 @@ void Controller::segmentPointcloudCallback(
 
   publishReward();
   publishMap();
-
-  tsdf_plusplus_msgs::Reward reward;
-  reward.number_of_objects = 0;
-  reward.number_of_occupied_voxels = 0;
-
-  std::map<ObjectID, ObjectVolume *> *object_volumes =
-      map_->getObjectVolumesPtr();
-  for (const auto &pair : *object_volumes) {
-    // Count Number of Objects
-    reward.number_of_objects++;
-    // Count Number of Voxels
-    Layer<TsdfVoxel> *object_layer = pair.second->getTsdfLayerPtr();
-    reward.number_of_occupied_voxels +=
-        object_layer->getNumberOfAllocatedBlocks();
-
-    // Store Object Level Stats
-    reward.object_ids.push_back(pair.first);
-    reward.object_number_of_voxels.push_back(
-        object_layer->getNumberOfAllocatedBlocks());
-  }
-
-  LOG(ERROR) << "[UPDATE] Number of Voxels: "
-             << reward.number_of_occupied_voxels;
 }
 
 void Controller::resetCallback(const std_msgs::Bool::Ptr &reset_msg) {
@@ -713,6 +690,12 @@ bool Controller::publishMap() {
         const voxblox::Point c = getCenterPointFromGridIndex(
             block_index, object_layer->block_size());
         pcl_pointcloud.push_back(pcl::PointXYZ(c(0, 0), c(1, 0), c(2, 0)));
+
+        // Get Voxels of Each Object
+        // auto block = object_layer->getBlockPtrByCoordinates(c);
+        // for(int i=0; i<block->num_voxels(); i++){
+        //   auto voxel = block->getVoxelByLinearIndex(i);
+        // }
       }
 
       sensor_msgs::PointCloud2 object_msg;
