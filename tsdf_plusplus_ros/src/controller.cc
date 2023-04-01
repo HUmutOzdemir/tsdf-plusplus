@@ -5,6 +5,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
 
 #include <minkindr_conversions/kindr_tf.h>
 #include <pcl/console/time.h>
@@ -18,6 +19,7 @@
 #include <tsdf_plusplus/utils/file_utils.h>
 #include <tsdf_plusplus_msgs/MovementPointCloud.h>
 #include <tsdf_plusplus_msgs/SegmentedPointCloud.h>
+#include <tsdf_plusplus_msgs/ObjectMapInformation.h>
 #include <voxblox/io/mesh_ply.h>
 #include <voxblox/io/sdf_ply.h>
 #include <voxblox_msgs/Mesh.h>
@@ -203,29 +205,6 @@ void Controller::resetCallback(const std_msgs::Bool::Ptr &reset_msg) {
   mesh_layer_->clear();
 
   clearFrame();
-
-  tsdf_plusplus_msgs::Reward reward;
-  reward.number_of_objects = 0;
-  reward.number_of_occupied_voxels = 0;
-
-  std::map<ObjectID, ObjectVolume *> *object_volumes =
-      map_->getObjectVolumesPtr();
-  for (const auto &pair : *object_volumes) {
-    // Count Number of Objects
-    reward.number_of_objects++;
-    // Count Number of Voxels
-    Layer<TsdfVoxel> *object_layer = pair.second->getTsdfLayerPtr();
-    reward.number_of_occupied_voxels +=
-        object_layer->getNumberOfAllocatedBlocks();
-
-    // Store Object Level Stats
-    reward.object_ids.push_back(pair.first);
-    reward.object_number_of_voxels.push_back(
-        object_layer->getNumberOfAllocatedBlocks());
-  }
-
-  LOG(ERROR) << "[RESET] Number of Voxels: "
-             << reward.number_of_occupied_voxels;
 }
 
 void Controller::processSegmentPointcloud(
@@ -634,28 +613,61 @@ bool Controller::publishReward() {
 
   {
     std::lock_guard<std::mutex> map_lock(map_mutex_);
+    Layer<MOVoxel> *global_map = map_->getMapLayerPtr();
+    // Get the indices of all allocated voxels
+    BlockIndexList global_map_blocks;
+    global_map->getAllAllocatedBlocks(&global_map_blocks);
+    std::map<ObjectID, ObjectVolume *> *object_volumes = map_->getObjectVolumesPtr();
 
-    tsdf_plusplus_msgs::Reward reward;
-    reward.number_of_objects = 0;
-    reward.number_of_occupied_voxels = 0;
+    // Initialize Reward Message
+    tsdf_plusplus_msgs::Reward msg;
+    msg.number_of_objects = 0;
+    msg.number_of_voxels = 0;
+    msg.number_of_free_voxels = 0;
+    msg.number_of_occupied_voxels = 0;
+    msg.number_of_unknown_voxels = 0;
 
-    std::map<ObjectID, ObjectVolume *> *object_volumes =
-        map_->getObjectVolumesPtr();
+    // Calculate Number of Objects
     for (const auto &pair : *object_volumes) {
-      // Count Number of Objects
-      reward.number_of_objects++;
-      // Count Number of Voxels
-      Layer<TsdfVoxel> *object_layer = pair.second->getTsdfLayerPtr();
-      reward.number_of_occupied_voxels +=
-          object_layer->getNumberOfAllocatedBlocks();
-
-      // Store Object Level Stats
-      reward.object_ids.push_back(pair.first);
-      reward.object_number_of_voxels.push_back(
-          object_layer->getNumberOfAllocatedBlocks());
+      msg.number_of_objects++;      
     }
 
-    reward_pub_.publish(reward);
+    for (const BlockIndex &block_index : global_map_blocks){
+      auto global_map_block =  global_map->getBlockPtrByIndex(block_index);
+
+      // Iterate over all voxels inside the block
+      for(int i=0; i<global_map_block->num_voxels(); i++){
+        // Increase Number of Voxels
+        msg.number_of_voxels++;
+
+        // Get Global Map Voxel
+        auto voxel = global_map_block->getVoxelByLinearIndex(i);
+        auto voxel_center = global_map_block->computeCoordinatesFromLinearIndex(i);
+
+        if(voxel.active_object.object_id == 0u){
+            msg.number_of_unknown_voxels++; // Check these voxels
+            continue;
+        }
+
+        // Get Object Volume Voxel
+        auto object_volume = (*object_volumes)[voxel.active_object.object_id];
+        auto object_volume_block = object_volume->getTsdfLayerPtr();
+        auto tsdf_voxel = object_volume_block->getVoxelPtrByCoordinates(voxel_center);
+
+        if(tsdf_voxel->weight < 1e-6){
+          msg.number_of_unknown_voxels++;
+        }else{
+          if(abs(tsdf_voxel->distance) < (object_volume_block->voxel_size()/2)){
+            msg.number_of_occupied_voxels++;
+          }else{
+            msg.number_of_free_voxels++;
+          }
+        }
+
+      }
+    }
+
+    reward_pub_.publish(msg);
   }
 
   return true;
