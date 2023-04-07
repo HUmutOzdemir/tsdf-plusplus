@@ -19,4 +19,5 @@
   <depend>voxblox_msgs</depend>
   <depend>voxblox_ros</depend>
   <depend>roscpp</depend>
+  <depend>pcl_ros</depend>
 </package>
