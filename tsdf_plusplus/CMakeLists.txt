@@ -3,6 +3,7 @@ project(tsdf_plusplus)
 
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
+add_definitions(-std=c++14 -Wall -Wextra)
 
 cs_add_library(${PROJECT_NAME}
   src/alignment/icp.cc
