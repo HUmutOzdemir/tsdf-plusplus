@@ -16,7 +16,7 @@ cs_add_library(${PROJECT_NAME}
   src/visualizer/visualizer.cc
 )
 
-target_link_libraries(${PROJECT_NAME} pcl_visualization)
+target_link_libraries(${PROJECT_NAME})
 
 cs_install()
 cs_export()

@@ -6,13 +6,14 @@
 
 #include <mutex>
 
-#include <pcl/visualization/pcl_visualizer.h>
 #include <voxblox/mesh/mesh_layer.h>
 
-class Visualizer {
+class Visualizer
+{
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  struct Config {
+  struct Config
+  {
     std::string window_name = "TSDF++ Map";
     double background_rgb[3] = {0.15, 0.15, 0.15};
   };
@@ -32,9 +33,6 @@ protected:
   void saveScreenshot();
 
   Config config_;
-
-  // The main viewer.
-  pcl::visualization::PCLVisualizer *viewer_;
 
   // Mesh layer to visualize.
   voxblox::MeshLayer *mesh_layer_;
