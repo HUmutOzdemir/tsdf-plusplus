@@ -3,8 +3,6 @@
 
 #include "tsdf_plusplus/visualizer/visualizer.h"
 
-#include <pcl/surface/vtk_smoothing/vtk_utils.h>
-
 #include "tsdf_plusplus/utils/conversions.h"
 #include "tsdf_plusplus/visualizer/visualizer_utils.h"
 #include <tsdf_plusplus/utils/file_utils.h>
