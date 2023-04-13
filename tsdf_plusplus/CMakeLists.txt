@@ -5,6 +5,10 @@ find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 add_definitions(-std=c++14 -Wall -Wextra)
 
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
 cs_add_library(${PROJECT_NAME}
   src/alignment/icp.cc
   src/core/object_volume.cc
@@ -13,10 +17,9 @@ cs_add_library(${PROJECT_NAME}
   src/integrator/integrator.cc
   src/mesh/color_map.cc
   src/mesh/mesh_integrator.cc
-  src/visualizer/visualizer.cc
 )
 
-target_link_libraries(${PROJECT_NAME})
+target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES})
 
 cs_install()
 cs_export()

@@ -4,32 +4,38 @@
 #include "tsdf_plusplus/core/segment.h"
 
 #include <pcl/common/centroid.h>
+#include <pcl/common/io.h>
 
 Segment::Segment(const pcl::PointCloud<InputPointType> &pointcloud_pcl,
                  const voxblox::Transformation &T_G_C)
-    : T_G_C_(T_G_C), semantic_class_(pointcloud_pcl.points[0].semantic_class) {
+    : T_G_C_(T_G_C), semantic_class_(pointcloud_pcl.points[0].semantic_class)
+{
   pointcloud_ = pointcloud_pcl;
   convertPointcloud();
 }
 
 Segment::Segment(const pcl::PointCloud<GTInputPointType> &pointcloud_pcl,
                  const voxblox::Transformation &T_G_C, const ObjectID object_id)
-    : T_G_C_(T_G_C), object_id_(object_id), semantic_class_(BackgroundClass) {
+    : T_G_C_(T_G_C), object_id_(object_id), semantic_class_(BackgroundClass)
+{
   pcl::copyPointCloud(pointcloud_pcl, pointcloud_);
   convertPointcloud();
 }
 
-void Segment::convertPointcloud() {
+void Segment::convertPointcloud()
+{
   points_C_.clear();
   colors_.clear();
 
   points_C_.reserve(pointcloud_.points.size());
   colors_.reserve(pointcloud_.points.size());
 
-  for (size_t i = 0u; i < pointcloud_.points.size(); ++i) {
+  for (size_t i = 0u; i < pointcloud_.points.size(); ++i)
+  {
     if (!std::isfinite(pointcloud_.points[i].x) ||
         !std::isfinite(pointcloud_.points[i].y) ||
-        !std::isfinite(pointcloud_.points[i].z)) {
+        !std::isfinite(pointcloud_.points[i].z))
+    {
       continue;
     }
 
