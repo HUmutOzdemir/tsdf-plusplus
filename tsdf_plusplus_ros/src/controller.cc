@@ -650,9 +650,21 @@ bool Controller::publishReward() {
         }
 
         // Get Object Volume Voxel
+        if ((*object_volumes).find(voxel.active_object.object_id) == (*object_volumes).end()){
+            continue;
+        }
         auto object_volume = (*object_volumes)[voxel.active_object.object_id];
+        if (!object_volume){
+            continue;
+        }
         auto object_volume_block = object_volume->getTsdfLayerPtr();
+        if (!object_volume_block){
+            continue;
+        }
         auto tsdf_voxel = object_volume_block->getVoxelPtrByCoordinates(voxel_center);
+        if (!tsdf_voxel){
+            continue;
+        }
 
         if(tsdf_voxel->weight < 1e-6){
           msg.number_of_unknown_voxels++;
